@@ -9,7 +9,7 @@
 
 begin;
 create extension if not exists pgtap;
-select plan(20);
+select plan(22);
 
 create table public.tres (k text primary key, v text);
 grant all on public.tres to authenticated;
@@ -45,6 +45,8 @@ $$;
 \set dana_tenant  '''a0000000-0000-4000-8000-000000000030'''
 \set ray_tenant   '''a0000000-0000-4000-8000-000000000031'''
 \set orgA         '''a0000000-0000-4000-8000-000000000001'''
+\set dana_lease   '''a0000000-0000-4000-8000-000000000040'''
+\set dana_inv2    '''a0000000-0000-4000-8000-000000000053'''
 \set propA        '''a0000000-0000-4000-8000-000000000100'''
 
 -- ===========================================================================
@@ -60,13 +62,20 @@ insert into public.tres values
   ('dana_org_id_is_null', (select public.current_org_id() is null)::text),
   ('dana_tenant_id',      (select public.current_tenant_id())::text),
 
-  -- What she should see: her own two invoices, her own unit, her own property.
-  ('dana_invoices',       (select count(*) from public.invoices)::text),
-  ('dana_own_invoice',    (select count(*) from public.invoices where id = :dana_invoice)::text),
-  ('dana_units',          (select count(*) from public.units)::text),
-  ('dana_properties',     (select count(*) from public.properties)::text),
-  ('dana_leases',         (select count(*) from public.leases)::text),
-  ('dana_tenants',        (select count(*) from public.tenants)::text),
+  -- Phrased as "everything I can see is mine", not "I see exactly N rows".
+  -- A total count depends on data this file does not control -- the billing
+  -- e2e issues invoices against org A leases -- so it would go red for a reason
+  -- unrelated to isolation. See the same note in rls_org_isolation.test.sql.
+  ('dana_own_invoices',    (select count(*) from public.invoices
+                            where id in (:dana_invoice, :dana_inv2))::text),
+  ('dana_own_invoice',     (select count(*) from public.invoices where id = :dana_invoice)::text),
+  ('dana_foreign_invoices',(select count(*) from public.invoices where lease_id <> :dana_lease)::text),
+  ('dana_foreign_units',   (select count(*) from public.units where id <> :dana_unit)::text),
+  ('dana_foreign_props',   (select count(*) from public.properties where id <> :propA)::text),
+  ('dana_foreign_leases',  (select count(*) from public.leases where tenant_id <> :dana_tenant)::text),
+  ('dana_foreign_tenants', (select count(*) from public.tenants where id <> :dana_tenant)::text),
+  ('dana_foreign_payments',(select count(*) from public.payments
+                            where invoice_id not in (:dana_invoice, :dana_inv2))::text),
 
   -- What she must not see, asked for by exact id.
   ('dana_sees_ray_invoice',  (select count(*) from public.invoices where id = :ray_invoice)::text),
@@ -101,18 +110,22 @@ insert into public.tres values
 reset role;
 select is((select v from public.tres where k = 'dana_org_id_is_null'), 'true',
   'a resident has no operator identity at all');
-select is((select v from public.tres where k = 'dana_invoices'), '2',
-  'resident sees exactly her own two invoices');
+select is((select v from public.tres where k = 'dana_own_invoices'), '2',
+  'resident can see both of her own invoices');
 select is((select v from public.tres where k = 'dana_own_invoice'), '1',
   'resident can open her own invoice');
-select is((select v from public.tres where k = 'dana_units'), '1',
-  'resident sees only the unit she rents');
-select is((select v from public.tres where k = 'dana_properties'), '1',
-  'resident sees only the building she lives in');
-select is((select v from public.tres where k = 'dana_leases'), '1',
-  'resident sees only her own lease');
-select is((select v from public.tres where k = 'dana_tenants'), '1',
-  'resident sees only her own resident record');
+select is((select v from public.tres where k = 'dana_foreign_invoices'), '0',
+  'every invoice a resident can see is on her own lease');
+select is((select v from public.tres where k = 'dana_foreign_units'), '0',
+  'every unit a resident can see is the one she rents');
+select is((select v from public.tres where k = 'dana_foreign_props'), '0',
+  'every property a resident can see is the one she lives in');
+select is((select v from public.tres where k = 'dana_foreign_leases'), '0',
+  'every lease a resident can see is her own');
+select is((select v from public.tres where k = 'dana_foreign_tenants'), '0',
+  'every resident record a resident can see is her own');
+select is((select v from public.tres where k = 'dana_foreign_payments'), '0',
+  'every payment a resident can see is against one of her own invoices');
 
 select is((select v from public.tres where k = 'dana_sees_ray_invoice'), '0',
   'AC7.1: resident of 101 cannot read the invoice of 102 by exact id');

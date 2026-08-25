@@ -4,7 +4,7 @@
 
 begin;
 create extension if not exists pgtap;
-select plan(18);
+select plan(24);
 
 create table public.tres (k text primary key, v text);
 grant all on public.tres to authenticated;
@@ -40,6 +40,10 @@ $$;
 \set invA  '''a0000000-0000-4000-8000-000000000050'''
 \set propA '''a0000000-0000-4000-8000-000000000100'''
 \set orgA  '''a0000000-0000-4000-8000-000000000001'''
+\set unit101 '''a0000000-0000-4000-8000-000000000101'''
+\set unit102 '''a0000000-0000-4000-8000-000000000102'''
+\set unit103 '''a0000000-0000-4000-8000-000000000103'''
+\set unitB2  '''b0000000-0000-4000-8000-000000000102'''
 
 -- ===========================================================================
 -- Alice — owner of org A
@@ -48,9 +52,19 @@ reset role;
 set local request.jwt.claims = '{"sub":"a0000000-0000-4000-8000-000000000010","role":"authenticated"}';
 set local role authenticated;
 
+-- Assertions are phrased as "everything I can see is mine", never "I can see
+-- exactly N rows". A total count silently depends on data no one in this file
+-- controls -- the e2e suite issues invoices for org A -- so it goes red for a
+-- reason that has nothing to do with isolation. Counting foreign rows tests the
+-- actual promise and cannot be broken by unrelated data.
 insert into public.tres values
-  ('alice_units',      (select count(*) from public.units)::text),
-  ('alice_invoices',   (select count(*) from public.invoices)::text),
+  ('alice_foreign_units',    (select count(*) from public.units    where org_id <> :orgA)::text),
+  ('alice_foreign_invoices', (select count(*) from public.invoices where org_id <> :orgA)::text),
+  ('alice_foreign_props',    (select count(*) from public.properties where org_id <> :orgA)::text),
+  ('alice_foreign_leases',   (select count(*) from public.leases   where org_id <> :orgA)::text),
+  ('alice_foreign_payments', (select count(*) from public.payments where org_id <> :orgA)::text),
+  ('alice_seeded_units',     (select count(*) from public.units
+                              where id in (:unit101, :unit102, :unit103))::text),
   ('alice_subs',       (select count(*) from public.subscriptions)::text),
   ('alice_sees_unitB', (select count(*) from public.units where id = :unitB)::text),
   ('alice_sees_invB',  (select count(*) from public.invoices where id = :invB)::text),
@@ -69,10 +83,18 @@ insert into public.tres values
             :orgA, :propB, 'X9')));
 
 reset role;
-select is((select v from public.tres where k = 'alice_units'), '3',
-  'owner A sees exactly her own 3 units');
-select is((select v from public.tres where k = 'alice_invoices'), '4',
-  'owner A sees exactly her own 4 invoices');
+select is((select v from public.tres where k = 'alice_seeded_units'), '3',
+  'owner A can see all three of her own units');
+select is((select v from public.tres where k = 'alice_foreign_units'), '0',
+  'every unit owner A can see belongs to her organization');
+select is((select v from public.tres where k = 'alice_foreign_invoices'), '0',
+  'every invoice owner A can see belongs to her organization');
+select is((select v from public.tres where k = 'alice_foreign_props'), '0',
+  'every property owner A can see belongs to her organization');
+select is((select v from public.tres where k = 'alice_foreign_leases'), '0',
+  'every lease owner A can see belongs to her organization');
+select is((select v from public.tres where k = 'alice_foreign_payments'), '0',
+  'every payment owner A can see belongs to her organization');
 select is((select v from public.tres where k = 'alice_subs'), '1',
   'owner A can read her own subscription');
 select is((select v from public.tres where k = 'alice_sees_unitB'), '0',
@@ -96,7 +118,8 @@ set local request.jwt.claims = '{"sub":"a0000000-0000-4000-8000-000000000011","r
 set local role authenticated;
 
 insert into public.tres values
-  ('mike_units', (select count(*) from public.units)::text),
+  ('mike_foreign_units', (select count(*) from public.units where org_id <> :orgA)::text),
+  ('mike_seeded_units',  (select count(*) from public.units where id in (:unit101, :unit102, :unit103))::text),
   ('mike_subs',  (select count(*) from public.subscriptions)::text),
   ('mike_update_org_rows', public.attempt_rows(
      format('update public.organizations set name = %L where id = %L', 'Renamed', :orgA))),
@@ -105,8 +128,10 @@ insert into public.tres values
             '00000000-0000-4000-8000-0000000000ff', :orgA, 'intruder@x.test', 'owner')));
 
 reset role;
-select is((select v from public.tres where k = 'mike_units'), '3',
+select is((select v from public.tres where k = 'mike_seeded_units'), '3',
   'manager sees the same units as the owner');
+select is((select v from public.tres where k = 'mike_foreign_units'), '0',
+  'and nothing outside the organization');
 select is((select v from public.tres where k = 'mike_subs'), '0',
   'manager cannot read the subscription — billing is the owner''s alone');
 select is((select v from public.tres where k = 'mike_update_org_rows'), '0',
@@ -123,7 +148,8 @@ set local request.jwt.claims = '{"sub":"b0000000-0000-4000-8000-000000000010","r
 set local role authenticated;
 
 insert into public.tres values
-  ('bob_units',      (select count(*) from public.units)::text),
+  ('bob_foreign_units', (select count(*) from public.units where org_id <> :orgB)::text),
+  ('bob_seeded_units',  (select count(*) from public.units where id in (:unitB, :unitB2))::text),
   ('bob_sees_invA',  (select count(*) from public.invoices where id = :invA)::text),
   ('bob_sees_propA', (select count(*) from public.properties where id = :propA)::text),
   ('bob_insert_reminder', public.attempt(
@@ -132,8 +158,10 @@ insert into public.tres values
   ('bob_delete_audit', public.attempt('delete from public.audit_logs'));
 
 reset role;
-select is((select v from public.tres where k = 'bob_units'), '2',
-  'owner B sees exactly his own 2 units');
+select is((select v from public.tres where k = 'bob_seeded_units'), '2',
+  'owner B can see both of his own units');
+select is((select v from public.tres where k = 'bob_foreign_units'), '0',
+  'every unit owner B can see belongs to his organization');
 select is((select v from public.tres where k = 'bob_sees_invA'), '0',
   'owner B cannot read org A invoice even by exact id');
 select is((select v from public.tres where k = 'bob_sees_propA'), '0',

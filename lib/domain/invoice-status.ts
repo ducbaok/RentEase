@@ -11,7 +11,8 @@
  *
  * If you change one, change the other, and re-run BOTH:
  *   pnpm test           (tests/unit/invoice-status.test.ts)
- *   pnpm test:rls       (supabase/tests/invariants.test.sql)
+ *   pnpm test:rls       (supabase/tests/billing.test.sql — the
+ *                        "compute_invoice_status" assertions)
  *
  * Dates are compared as 'YYYY-MM-DD' strings. That is not laziness: for this
  * format lexicographic order IS chronological order, and it avoids the

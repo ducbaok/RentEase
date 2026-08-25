@@ -10,8 +10,8 @@
 --
 -- MIRROR WARNING: lib/domain/invoice-status.ts reproduces this exact rule for
 -- previewing state in the UI before a write. If you change one, change the
--- other and re-run both tests/unit/invoice-status.test.ts and
--- supabase/tests/invoice_status.test.sql.
+-- other and re-run both tests/unit/invoice-status.test.ts and the
+-- compute_invoice_status assertions in supabase/tests/billing.test.sql.
 --
 -- 'overdue' deliberately outranks 'partial': someone who paid half and is past
 -- the due date still owes money, and the collections view must show them.

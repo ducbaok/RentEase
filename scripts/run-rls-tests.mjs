@@ -45,6 +45,24 @@ function runFile(container, file) {
   const failed = lines.filter((line) => line.startsWith('not ok '))
   const errors = lines.filter((line) => line.includes('ERROR:'))
 
+  /*
+   * A file that declares plan(23) and runs 22 assertions has silently lost one,
+   * and every assertion it did run still prints "ok" — so counting failures
+   * alone reports a clean pass on a suite that quietly stopped testing
+   * something. pgTAP mentions it only in a trailing "# Looks like ..." note, so
+   * the mismatch is promoted to a failure here rather than left in the output.
+   */
+  const planLine = lines.find((line) => /^1\.\.\d+$/.test(line.trim()))
+  const ran = passed + failed.length
+  if (planLine) {
+    const planned = Number(planLine.trim().split('..')[1])
+    if (planned !== ran) {
+      errors.push(`plan mismatch: declared ${planned} assertions, ran ${ran}`)
+    }
+  } else {
+    errors.push('no TAP plan found — did the file fail before select plan(...)?')
+  }
+
   return { passed, failed, errors, output }
 }
 
