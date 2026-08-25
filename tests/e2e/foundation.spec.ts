@@ -31,11 +31,32 @@ function header(page: import('@playwright/test').Page) {
   return page.locator('header')
 }
 
-async function signIn(page: import('@playwright/test').Page, email: string, password: string) {
+/**
+ * Next renders its own live region with role="alert" (#__next-route-announcer__)
+ * once the page hydrates, so an unscoped getByRole('alert') is ambiguous and
+ * fails strict mode intermittently. Always scope form errors to the form.
+ */
+function formAlert(page: import('@playwright/test').Page) {
+  return page.locator('form').getByRole('alert')
+}
+
+async function signIn(
+  page: import('@playwright/test').Page,
+  email: string,
+  password: string,
+  { expectSuccess = true } = {},
+) {
   await page.goto('/sign-in')
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Password').fill(password)
   await page.getByRole('button', { name: 'Sign in' }).click()
+
+  if (expectSuccess) {
+    // The action sets the session cookie and then redirects. Waiting for that
+    // redirect to land is what makes the cookie present for whatever the test
+    // navigates to next — without it the following request is anonymous.
+    await page.waitForURL((url) => !url.pathname.startsWith('/sign-in'))
+  }
 }
 
 test.describe('access', () => {
@@ -50,8 +71,8 @@ test.describe('access', () => {
   })
 
   test('a wrong password says nothing about whether the account exists', async ({ page }) => {
-    await signIn(page, SEED.ownerA.email, 'not-the-password')
-    await expect(page.getByRole('alert')).toContainText('did not match an account')
+    await signIn(page, SEED.ownerA.email, 'not-the-password', { expectSuccess: false })
+    await expect(formAlert(page)).toContainText('did not match an account')
     await expect(page).toHaveURL(/\/sign-in/)
   })
 })
