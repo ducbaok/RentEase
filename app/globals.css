@@ -14,6 +14,17 @@
 @source '../components';
 @source '../lib';
 
+/*
+ * Tailwind 4 discovers its own sources by walking the project root. In a git
+ * worktree, docs/ is a junction to the SoT in the main checkout, and following
+ * it produces a path that climbs out of the project — which Turbopack cannot
+ * represent, so every page fails to compile with "leaves the filesystem root".
+ *
+ * docs/ is markdown; nothing in it can contain a class name. Excluding it costs
+ * nothing and makes the app compile in a worktree as well as in the main repo.
+ */
+@source not "../docs";
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
