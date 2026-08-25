@@ -20,11 +20,23 @@ export default async function PortalLayout({ children }: { children: React.React
     <div className="flex min-h-dvh flex-col">
       <header className="border-b border-border">
         <div className="mx-auto flex h-14 max-w-3xl items-center justify-between gap-4 px-4 sm:px-6">
-          <Link href="/portal" className="text-sm font-semibold tracking-tight text-primary">
-            RentEase
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/portal" className="text-sm font-semibold tracking-tight text-primary">
+              RentEase
+            </Link>
+            <nav className="flex items-center gap-3 text-sm text-muted-foreground">
+              <Link href="/portal" className="hover:text-foreground">
+                Bills
+              </Link>
+              <Link href="/portal/maintenance" className="hover:text-foreground">
+                Repairs
+              </Link>
+            </nav>
+          </div>
           <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground">{identity.fullName}</span>
+            <span className="hidden text-sm text-muted-foreground sm:inline">
+              {identity.fullName}
+            </span>
             <SignOutButton />
           </div>
         </div>
