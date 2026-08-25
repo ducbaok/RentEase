@@ -1,4 +1,18 @@
-@import 'tailwindcss';
+/*
+ * Tailwind scans these three directories and nothing else.
+ *
+ * `source(none)` turns OFF automatic source detection, which is not a
+ * micro-optimisation. In a git worktree `docs/` is a junction pointing back at
+ * the main checkout; the scanner resolves it to a path OUTSIDE this project
+ * root, and Turbopack refuses such a path — taking `next dev` and `next build`
+ * down with it, in every worktree, with an error that names only globals.css.
+ * Listing the directories that actually contain class names makes the build
+ * behave identically in the main checkout and in every worktree.
+ */
+@import 'tailwindcss' source(none);
+@source '../app';
+@source '../components';
+@source '../lib';
 
 @custom-variant dark (&:where(.dark, .dark *));
 
