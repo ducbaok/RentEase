@@ -1,0 +1,41 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# next.js
+.next/
+out/
+next-env.d.ts
+
+# production
+build/
+dist/
+
+# env — never commit secrets
+.env
+.env*.local
+
+# testing
+coverage/
+playwright-report/
+test-results/
+.playwright/
+
+# supabase local
+supabase/.temp/
+supabase/.branches/
+
+# editors / os
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# NOTE: *.md is deliberately NOT ignored here.
+# Markdown files must stay visible to agents (docs/sot is the source of truth),
+# but they must never be committed. That rule is enforced by .git/hooks/pre-commit
+# and by always staging explicit paths instead of `git add -A`. See CLAUDE.md.
+
+# typescript incremental build cache
+*.tsbuildinfo
