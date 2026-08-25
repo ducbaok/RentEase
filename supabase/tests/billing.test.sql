@@ -181,29 +181,33 @@ select is(
 -- Deliberately NOT constrained: meters roll over and get replaced. AC3.1 asks
 -- for a confirmation, which lives in the application; the database's job is to
 -- keep the fact rather than refuse it.
+--
+-- The period is 2029-03 rather than the month after the seed, because
+-- tests/e2e/billing.spec.ts enters real readings for 2026-09 and a leftover row
+-- there would make the first insert below collide for the wrong reason.
 select is(
   public.attempt(format(
     'insert into public.meter_readings (org_id, unit_id, period, electric_prev, electric_curr, water_prev, water_curr, flags) values (%L, %L, %L, 5000, 12, 100, 120, %L)',
-    :orgA, :unit101, '2026-09', '{electric_decreased}')),
+    :orgA, :unit101, '2029-03', '{electric_decreased}')),
   'ok',
   'AC3.1: a reading below last month is storable — with the fact recorded in flags');
 
 select is(
-  (select flags from public.meter_readings where unit_id = :unit101 and period = '2026-09'),
+  (select flags from public.meter_readings where unit_id = :unit101 and period = '2029-03'),
   array['electric_decreased'],
   'and the flag is what survives, so the pre-issue review can show it again');
 
 select is(
   public.attempt(format(
     'update public.meter_readings set electric_curr = 5200, flags = %L where unit_id = %L and period = %L',
-    '{}', :unit101, '2026-09')),
+    '{}', :unit101, '2029-03')),
   'ok',
   'AC3.3: re-entering a period edits the one row rather than adding a second');
 
 select is(
   public.attempt(format(
     'insert into public.meter_readings (org_id, unit_id, period, electric_curr, water_curr) values (%L, %L, %L, 1, 1)',
-    :orgA, :unit101, '2026-09')),
+    :orgA, :unit101, '2029-03')),
   '23505',
   'AC3.3: and a second row for that unit and period is impossible');
 
