@@ -25,20 +25,33 @@
  * ids change if a price is ever superseded.
  */
 
+// MIRROR of lib/stripe/plans.ts — that file is the source of truth and the app
+// reads it at runtime; this script cannot import it (TypeScript, and it pulls in
+// the Stripe client). Every field below must keep matching its counterpart there:
+// plan id, product id, lookup key and amount. They are not decorative. The app's
+// planForPriceLike() identifies a plan by lookup key first, then by PRODUCT_IDS,
+// then by price.metadata.plan — so a product created here under a Stripe-generated
+// id, or metadata under a different key, silently disables two of the three.
 const PLANS = [
   {
+    planId: 'mini',
+    productId: 'rentease_mini',
     lookupKey: 'rentease_mini_monthly',
     name: 'RentEase Mini',
     description: 'Up to 10 units, one manager.',
     amountCents: 1900,
   },
   {
+    planId: 'standard',
+    productId: 'rentease_standard',
     lookupKey: 'rentease_standard_monthly',
     name: 'RentEase Standard',
     description: 'Up to 50 units, three managers, reminders and export.',
     amountCents: 4900,
   },
   {
+    planId: 'pro',
+    productId: 'rentease_pro',
     lookupKey: 'rentease_pro_monthly',
     name: 'RentEase Pro',
     description: 'Unlimited units and properties, priority support.',
@@ -134,24 +147,33 @@ for (const plan of PLANS) {
     continue
   }
 
-  const product = await stripe('/products', {
-    method: 'POST',
-    params: {
-      name: plan.name,
-      description: plan.description,
-      metadata: { rentease_plan: plan.lookupKey },
-    },
-  })
+  // Our own product id, not a Stripe-generated one, so that the app's second
+  // way of recognising a plan keeps working. Ask before creating: running this
+  // twice must not end with two products for one plan.
+  try {
+    await stripe(`/products/${plan.productId}`)
+  } catch (error) {
+    if (!/→ 404:/.test(String(error.message))) throw error
+    await stripe('/products', {
+      method: 'POST',
+      params: {
+        id: plan.productId,
+        name: plan.name,
+        description: plan.description,
+        metadata: { plan: plan.planId },
+      },
+    })
+  }
 
   const price = await stripe('/prices', {
     method: 'POST',
     params: {
-      product: product.id,
+      product: plan.productId,
       currency: CURRENCY,
       unit_amount: plan.amountCents,
       lookup_key: plan.lookupKey,
       recurring: { interval: 'month' },
-      metadata: { rentease_plan: plan.lookupKey },
+      metadata: { plan: plan.planId },
     },
   })
 
