@@ -30,6 +30,22 @@ export const metadata: Metadata = { title: 'Plan & billing' }
  * AC-S2 and AC-S3 and is why the banner says so out loud rather than leaving a
  * landlord to discover whether their data still works.
  */
+/**
+ * A trial longer than a year is not a countdown, it is an open door (D24).
+ *
+ * While billing is deferred, signup hands out a deadline in 2099 so that no
+ * organization ever locks itself out. Rendering that literally would tell a
+ * landlord they have twenty-six thousand days left, which reads as a bug and
+ * quietly advertises that nobody is being charged.
+ *
+ * This is a THRESHOLD, deliberately, and not a comparison against the sentinel
+ * date itself: matching the exact value would put the same constant in the
+ * migration and in this file, and Batch 3 already paid for two facts about one
+ * thing living in two places (B3-6). Any trial beyond a year means the same
+ * thing here no matter which date the database chose.
+ */
+const OPEN_ENDED_TRIAL_DAYS = 365
+
 export default async function BillingPage({
   searchParams,
 }: {
@@ -178,7 +194,9 @@ export default async function BillingPage({
                 <p className="text-sm text-muted-foreground">
                   {entitlement.trialDaysLeft === null
                     ? 'You are on the free trial. No card needed.'
-                    : `${entitlement.trialDaysLeft} ${entitlement.trialDaysLeft === 1 ? 'day' : 'days'} left in your free trial — no card needed, and every feature is switched on.`}
+                    : entitlement.trialDaysLeft > OPEN_ENDED_TRIAL_DAYS
+                      ? 'You are on the free trial, with no end date while we are not charging. No card needed, and every feature is switched on.'
+                      : `${entitlement.trialDaysLeft} ${entitlement.trialDaysLeft === 1 ? 'day' : 'days'} left in your free trial — no card needed, and every feature is switched on.`}
                 </p>
               ) : null}
 

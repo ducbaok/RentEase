@@ -204,14 +204,17 @@ test.beforeAll(async ({ browser }) => {
 // AC-S3 · the trial itself
 // ===========================================================================
 
-test.describe('a new organization gets 14 days with no card (D22, AC-S3)', () => {
-  test('the billing page says so, and counts the days down', async ({ page }) => {
+test.describe('a new organization gets an open-ended trial with no card (D22 as amended by D24, AC-S3)', () => {
+  test('the billing page says so, without a meaningless countdown', async ({ page }) => {
     await signIn(page, trialOrg.email, trialOrg.password)
     await page.goto('/settings/billing')
 
     await expect(page.getByText('Free trial', { exact: true })).toBeVisible()
-    await expect(page.getByText(/14 days left in your free trial/)).toBeVisible()
-    await expect(page.getByText(/no card needed/)).toBeVisible()
+    // D24 — billing is deferred, so the trial has no end date. A literal
+    // countdown here would read "26801 days left", which is why the page has a
+    // threshold rather than a number.
+    await expect(page.getByText(/no end date while we are not charging/)).toBeVisible()
+    await expect(page.getByText(/No card needed/)).toBeVisible()
   })
 
   test('the deadline was recorded at signup, not left for the app to invent', async () => {
@@ -225,9 +228,12 @@ test.describe('a new organization gets 14 days with no card (D22, AC-S3)', () =>
     expect(row.status).toBe('trialing')
     expect(row.period_end).not.toBeNull()
 
+    // D24: far enough out that no organization can lock itself out while there
+    // is no way to pay. Asserted as "beyond any plausible countdown" rather than
+    // against the exact sentinel, so this test does not become the second place
+    // that date is written down (B3-6).
     const daysOut = (Date.parse(row.period_end as string) - Date.now()) / 86_400_000
-    expect(daysOut).toBeGreaterThan(13.9)
-    expect(daysOut).toBeLessThan(14.1)
+    expect(daysOut).toBeGreaterThan(365)
   })
 
   test('the trial has no unit ceiling — it is bounded by time, not size', async ({ page }) => {

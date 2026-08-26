@@ -3,7 +3,7 @@
 -- Two things are proved against the database itself rather than through the
 -- application, because both are promises the application cannot keep on its own:
 --
---   D22 / AC-S3  a new organization gets a trial deadline at the moment it is
+--   D22 / D24 / AC-S3  a new organization gets a trial deadline at the moment it is
 --                created. If create_organization_and_owner ever stops writing
 --                period_end, every trial becomes endless and nothing in the UI
 --                would look wrong — the landlord simply never gets asked to pay.
@@ -51,7 +51,8 @@ insert into auth.users (
 );
 
 -- ===========================================================================
--- D22 — signing up starts a 14-day trial with a recorded deadline
+-- D22 + D24 — signing up starts a trial with a recorded deadline. The length
+-- is open-ended while billing is deferred; the mechanism is unchanged.
 -- ===========================================================================
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"c0000000-0000-4000-8000-0000000003a1","role":"authenticated"}';
@@ -82,11 +83,10 @@ select isnt(
 -- Fourteen days, checked with a minute of slack on either side so the
 -- assertion is about the interval and not about clock jitter.
 select ok(
-  (select period_end between now() + interval '14 days' - interval '1 minute'
-                         and now() + interval '14 days' + interval '1 minute'
+  (select period_end = timestamptz '2099-12-31 00:00:00+00'
      from public.subscriptions
     where org_id = (select v::uuid from public.tres where k = 'org')),
-  'D22: the deadline is 14 days out');
+  'D24: the deadline is the open-ended sentinel while billing is deferred');
 
 select is(
   (select count(*)::int from public.subscriptions
@@ -106,9 +106,9 @@ select is(
   0,
   'backfill: no trialing subscription is left without a deadline');
 
--- A row shaped the way every trialing subscription looked before the migration:
--- trialing, no deadline, started three days ago. The statement below is the
--- migration's backfill, character for character.
+-- A row shaped the way every trialing subscription looked before D24: trialing,
+-- with a fourteen-day deadline that is about to run out. The statement below is
+-- the backfill from migration 20260826020000, character for character.
 --
 -- It is re-run here against a row this transaction created rather than asserted
 -- over whatever the shared database happens to hold, because the local Supabase
@@ -119,22 +119,20 @@ insert into public.organizations (id, name)
 values (:probeOrg, 'Backfill Probe Rentals');
 
 insert into public.subscriptions (org_id, plan, status, period_end, created_at)
-values (:probeOrg, 'mini', 'trialing', null, now() - interval '3 days');
+values (:probeOrg, 'mini', 'trialing', now() + interval '2 days', now() - interval '12 days');
 
 update public.subscriptions
-   set period_end = created_at + interval '14 days'
- where status = 'trialing'
-   and period_end is null;
+   set period_end = timestamptz '2099-12-31 00:00:00+00'
+ where status = 'trialing';
 
--- Eleven days out, not fourteen: the deadline dates from when the trial STARTED,
--- not from when the migration happened to run. Backfilling from now() would have
--- handed every existing organization a second free fortnight.
+-- The D24 backfill rescues trials that were already counting down, which is the
+-- whole point: an organization two days from being locked out of its own units
+-- must come out of this with no deadline at all, not with the countdown intact.
 select ok(
-  (select period_end between now() + interval '11 days' - interval '1 minute'
-                         and now() + interval '11 days' + interval '1 minute'
+  (select period_end = timestamptz '2099-12-31 00:00:00+00'
      from public.subscriptions
     where org_id = :probeOrg),
-  'backfill: a trial that started three days ago now ends in eleven');
+  'backfill: a trial that was two days from expiring is now open-ended');
 
 -- ===========================================================================
 -- Reading a subscription — owners only (AC-S2: managers run buildings, not

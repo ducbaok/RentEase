@@ -16,6 +16,7 @@
  *   node scripts/check-deploy-env.mjs                 # checks the live shell
  *   node scripts/check-deploy-env.mjs --file .env.production
  *   node scripts/check-deploy-env.mjs --stage staging # test-mode Stripe is fine
+ *   node scripts/check-deploy-env.mjs --no-billing    # billing deferred (D24)
  *
  * It never prints a value. Everything is reported as present/absent and by
  * shape, because the natural place to run this is a terminal in a screen share.
@@ -31,6 +32,14 @@ const flag = (name) => {
 
 const stage = flag('--stage') ?? 'production'
 const file = flag('--file')
+
+/**
+ * Billing is deferred (D24): there is no Stripe account to configure yet, so
+ * the two Stripe variables are absent by design rather than forgotten. This
+ * flag says so out loud instead of letting the check be quietly ignored — and
+ * when billing opens, dropping the flag turns them back into hard failures.
+ */
+const billingDeferred = args.includes('--no-billing')
 
 if (!['production', 'staging'].includes(stage)) {
   console.error(`Unknown --stage "${stage}". Expected production or staging.`)
@@ -126,7 +135,8 @@ const CHECKS = [
   },
   {
     name: 'STRIPE_SECRET_KEY',
-    required: true,
+    required: !billingDeferred,
+    skip: billingDeferred,
     check: (value) => {
       if (!/^sk_(live|test)_/.test(value)) return 'should start with sk_live_ or sk_test_'
       if (stage === 'production' && value.startsWith('sk_test_')) {
@@ -140,7 +150,8 @@ const CHECKS = [
   },
   {
     name: 'STRIPE_WEBHOOK_SECRET',
-    required: true,
+    required: !billingDeferred,
+    skip: billingDeferred,
     check: (value) =>
       value.startsWith('whsec_') ||
       'should start with whsec_ — it is the endpoint signing secret from the Stripe dashboard, ' +
@@ -153,7 +164,12 @@ let warnings = 0
 
 console.log(`Checking ${file ?? 'the current environment'} for stage "${stage}"\n`)
 
-for (const { name, required, check } of CHECKS) {
+for (const { name, required, check, skip } of CHECKS) {
+  if (skip) {
+    console.log(`  SKIP  ${name} — billing deferred (D24), nothing to configure yet`)
+    continue
+  }
+
   const value = env[name]
 
   if (!value) {
