@@ -4,6 +4,28 @@
 # working directory name when running `supabase init`.
 project_id = "RentEase"
 
+# ---------------------------------------------------------------------------
+# BUG B0-1 — why there is no loopback bind in this file
+#
+# `supabase start` publishes every container port on ALL interfaces, so the
+# local Postgres (user `postgres`, password `postgres`, no TLS) and Studio
+# answer anyone on the same network. The obvious fix would be a bind address
+# here, and there is not one: the CLI builds its Docker arguments as
+# `-p <port>:<port>` with no host address and exposes no configuration key for
+# it. Verified against CLI 2.115.0 by reading the argument builder in the
+# binary and by confirming `Test-NetConnection <lan-ip> 54322` succeeds.
+#
+# The block therefore lives one layer out, at the Windows firewall — loopback
+# traffic bypasses it entirely, so development is unaffected while another
+# machine on the network is refused. Run it once, elevated:
+#
+#     ./scripts/harden-local-supabase.ps1
+#
+# Do not "fix" this by lowering the ports or removing services; the ports are
+# what the tooling and .env.local expect. If a future CLI gains a bind address,
+# set it here and the firewall rule becomes redundant rather than wrong.
+# ---------------------------------------------------------------------------
+
 [api]
 enabled = true
 # Port to use for the API URL.
