@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { buildPortalInviteEmail } from '@/lib/data/portal-emails'
-import { buildMaintenanceStatusEmail } from '@/lib/data/maintenance-emails'
+import { buildPortalInviteEmail } from '@/lib/notifications/templates/portal'
+import { buildMaintenanceStatusEmail } from '@/lib/notifications/templates/maintenance'
 
 describe('portal invite email', () => {
   const email = buildPortalInviteEmail({
