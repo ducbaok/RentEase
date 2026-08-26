@@ -37,11 +37,9 @@ import { todayUtc } from '@/lib/domain/invoice-status'
 import {
   buildDemoDataset,
   DEMO_MANAGER_EMAIL,
-  DEMO_MANAGER_ID,
   DEMO_ORG_ID,
   DEMO_ORG_NAME,
   DEMO_OWNER_EMAIL,
-  DEMO_OWNER_ID,
   DEMO_PERIOD_END,
   DEMO_PLAN,
   DEMO_SUBSCRIPTION_STATUS,
@@ -143,21 +141,34 @@ async function ensureOrganization(supabase: Admin): Promise<void> {
 }
 
 /**
- * Whether the demo operators exist as application users.
+ * The demo manager's user id, or null when the demo operators are not set up.
  *
  * `meter_readings.recorded_by` and `payments.recorded_by` point at auth.users,
  * so seeding them with an account that is not there would fail the whole run.
  * Rather than refuse, the reset records those rows with no author and notes it:
  * a demo with data and an unattributed payment is far more useful than no demo.
+ *
+ * LOOKED UP BY EMAIL, NOT BY ID, and that is the whole point of this function.
+ * `supabase/seed.sql` can choose the ids it inserts, so locally the accounts do
+ * land on the ids seed.sql picks. In a hosted project they are created
+ * through the dashboard, which mints its own uuid and offers no way to pick one
+ * — so an id lookup can never match there. It failed exactly that way on the
+ * first production deploy: the accounts existed, the reset insisted they did
+ * not, and every reading and payment was written with no author (B4-4).
+ *
+ * The email addresses are the stable identity across both environments.
  */
-async function operatorsPresent(supabase: Admin): Promise<boolean> {
+async function demoAuthorId(supabase: Admin): Promise<string | null> {
   const { data, error } = await supabase
     .from('users')
-    .select('id')
-    .in('id', [DEMO_OWNER_ID, DEMO_MANAGER_ID])
+    .select('id, email')
+    .in('email', [DEMO_OWNER_EMAIL, DEMO_MANAGER_EMAIL])
 
   if (error) throw new Error(`checking the demo operator accounts failed: ${error.message}`)
-  return (data?.length ?? 0) === 2
+  if ((data?.length ?? 0) !== 2) return null
+
+  const manager = data?.find((row) => row.email === DEMO_MANAGER_EMAIL)
+  return manager?.id ?? null
 }
 
 export async function runDemoReset(
@@ -170,15 +181,15 @@ export async function runDemoReset(
 
   await ensureOrganization(supabase)
 
-  const hasOperators = await operatorsPresent(supabase)
-  if (!hasOperators) {
+  const author = await demoAuthorId(supabase)
+  if (author === null) {
     notes.push(
       `The demo operator accounts (${DEMO_OWNER_EMAIL}, ${DEMO_MANAGER_EMAIL}) are missing, ` +
         'so readings and payments were seeded without an author. Create them once — ' +
         'supabase/seed.sql does it locally, docs/sot/80-deploy-runbook.md in production.',
     )
   }
-  const author = hasOperators ? DEMO_MANAGER_ID : null
+
 
   const deleted: Record<string, number> = {}
   for (const table of DELETE_ORDER) {
@@ -222,7 +233,7 @@ export async function runDemoReset(
     orgId: DEMO_ORG_ID,
     deleted,
     inserted,
-    operatorAccountsPresent: hasOperators,
+    operatorAccountsPresent: author !== null,
     notes,
   }
 }
