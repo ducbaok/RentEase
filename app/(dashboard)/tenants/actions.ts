@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { requireOperator } from '@/lib/auth'
 import { createTenant, deleteTenant, updateTenant } from '@/lib/data/tenants'
+import { checkCreateAllowance } from '@/lib/stripe/entitlement'
 
 /**
  * Resident actions (F1).
@@ -49,6 +50,12 @@ export async function createTenantAction(
   formData: FormData,
 ): Promise<TenantFormState> {
   const { orgId } = await requireOperator()
+
+  // AC-S2 / AC-S3 (stream 3A). Refuses only the NEW record; everything already
+  // recorded stays readable and writable.
+  const allowance = await checkCreateAllowance('tenant')
+  if (!allowance.allowed) return { error: allowance.message }
+
   const parsed = parse(formData)
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Check the form.' }
 

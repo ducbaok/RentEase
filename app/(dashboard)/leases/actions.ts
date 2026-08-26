@@ -13,6 +13,7 @@ import {
 } from '@/lib/data/leases'
 import { parseAmountToCents } from '@/lib/domain/money'
 import { validateLeaseDraft, validateLeaseEnd, type LeaseDraft } from '@/lib/domain/leases'
+import { checkCreateAllowance } from '@/lib/stripe/entitlement'
 
 /**
  * Lease actions (F2).
@@ -76,6 +77,12 @@ export async function createLeaseAction(
   formData: FormData,
 ): Promise<LeaseFormState> {
   const { orgId } = await requireOperator()
+
+  // AC-S2 / AC-S3 (stream 3A). Refuses only the NEW record; everything already
+  // recorded stays readable and writable.
+  const allowance = await checkCreateAllowance('lease')
+  if (!allowance.allowed) return { error: allowance.message }
+
   const parsed = checked(draftFrom(formData))
   if ('error' in parsed) return { error: parsed.error }
 
