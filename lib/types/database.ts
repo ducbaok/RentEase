@@ -743,6 +743,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_tenant_portal: { Args: never; Returns: string }
       compute_invoice_status: {
         Args: {
           p_as_of?: string

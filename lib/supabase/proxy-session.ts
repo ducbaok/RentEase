@@ -2,8 +2,20 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from '@/lib/env'
 
-/** Paths reachable without a session. */
-const PUBLIC_PREFIXES = ['/sign-in', '/sign-up', '/auth', '/api/webhooks', '/api/cron']
+/**
+ * Paths reachable without a session. '/magic-link' is here because a resident
+ * accepting an invitation has no session yet — the page and its callback are how
+ * they get one (F7). This only decides which page renders; RLS still decides
+ * what any resulting session can read.
+ */
+const PUBLIC_PREFIXES = [
+  '/sign-in',
+  '/sign-up',
+  '/magic-link',
+  '/auth',
+  '/api/webhooks',
+  '/api/cron',
+]
 
 function isPublic(pathname: string): boolean {
   return pathname === '/' || PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))
