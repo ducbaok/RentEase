@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { requireOperator } from '@/lib/auth'
 import { createUnit, deleteUnit, getUnit, updateUnit } from '@/lib/data/units'
 import { parseAmountToCents } from '@/lib/domain/money'
+import { checkCreateAllowance } from '@/lib/stripe/entitlement'
 
 /**
  * Unit actions (F1).
@@ -62,6 +63,12 @@ export async function createUnitAction(
   formData: FormData,
 ): Promise<UnitFormState> {
   const { orgId } = await requireOperator()
+
+  // AC-S2 / AC-S3 (stream 3A). Refuses only the NEW record; everything already
+  // recorded stays readable and writable.
+  const allowance = await checkCreateAllowance('unit')
+  if (!allowance.allowed) return { error: allowance.message }
+
   const parsed = parse(formData)
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Check the form.' }
 

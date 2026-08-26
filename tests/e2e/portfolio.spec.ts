@@ -234,6 +234,12 @@ test.describe('the asset tree', () => {
     await page.goto('/tenants/new')
     await page.getByLabel('Full name').fill('Casey Lin')
     await page.getByRole('button', { name: 'Create resident' }).click()
+    // Wait for the action to land before navigating away. Without this the test
+    // races the Server Action and can reach /leases/new while the resident does
+    // not exist yet — which renders "no resident to put on a lease" and fails
+    // several steps later, nowhere near the cause. Every other create in this
+    // suite already waits; this one was missed.
+    await expect(page).toHaveURL(/\/tenants\/[0-9a-f-]{36}$/)
 
     await page.goto('/leases/new')
     await page.getByLabel('Start date').fill(today())

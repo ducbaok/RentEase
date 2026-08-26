@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { requireOperator } from '@/lib/auth'
 import { createProperty, deleteProperty, updateProperty } from '@/lib/data/properties'
+import { checkCreateAllowance } from '@/lib/stripe/entitlement'
 
 /**
  * Property actions (F1).
@@ -47,6 +48,12 @@ export async function createPropertyAction(
   formData: FormData,
 ): Promise<PropertyFormState> {
   const { orgId } = await requireOperator()
+
+  // AC-S2 / AC-S3 (stream 3A). Refuses only the NEW record; everything already
+  // recorded stays readable and writable.
+  const allowance = await checkCreateAllowance('property')
+  if (!allowance.allowed) return { error: allowance.message }
+
   const parsed = parse(formData)
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Check the form.' }
 

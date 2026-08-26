@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { assertPeriod } from '@/lib/domain/period'
 import { parseAmountToCents } from '@/lib/domain/money'
 import { adjustInvoice, issueInvoices } from '@/lib/data/invoices'
+import { checkCreateAllowance } from '@/lib/stripe/entitlement'
 
 export interface IssueFormState {
   error?: string
@@ -30,6 +31,16 @@ export async function issueInvoicesAction(
   } catch {
     return { error: 'That is not a billing period.' }
   }
+
+  /*
+   * AC-S3 (stream 3A). Issuing a new month's invoices is creating records, so
+   * an expired trial stops it — and stops nothing else. Invoices already issued
+   * stay open, payments against them are still recorded, and residents keep
+   * seeing theirs. The unit ceiling (AC-S2) is not consulted here: it counts
+   * units, and issuing invoices adds none.
+   */
+  const allowance = await checkCreateAllowance('invoice')
+  if (!allowance.allowed) return { error: allowance.message }
 
   let result
   try {
