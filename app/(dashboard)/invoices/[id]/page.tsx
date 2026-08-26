@@ -22,6 +22,7 @@ import { PAYMENT_METHOD_LABELS } from '@/lib/data/payments'
 import { PaymentForm } from '../../payments/payment-form'
 import { BreakdownTable } from '../_components/breakdown-table'
 import { InvoiceStatusBadge } from '../_components/invoice-status-badge'
+import { AuditChange } from '../_components/audit-change'
 import { formatDate, formatDateTime } from '../_components/format'
 import { AdjustForm } from './adjust-form'
 
@@ -193,51 +194,4 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
       </div>
     </>
   )
-}
-
-/**
- * Renders an audit entry as the fields that actually moved.
- *
- * Showing the whole before/after JSON would bury a $50 rent reduction in six
- * unchanged keys, so only differing fields are printed, old → new.
- */
-function AuditChange({ oldValue, newValue }: { oldValue: unknown; newValue: unknown }) {
-  const before = asRecord(oldValue)
-  const after = asRecord(newValue)
-  const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])].filter(
-    (key) => JSON.stringify(before[key]) !== JSON.stringify(after[key]),
-  )
-
-  if (keys.length === 0) return <span className="text-muted-foreground">—</span>
-
-  return (
-    <ul className="space-y-0.5">
-      {keys.map((key) => (
-        <li key={key}>
-          <span className="font-medium">{LABELS[key] ?? key}</span>{' '}
-          <span className="tabular-nums">{render(key, before[key])}</span> →{' '}
-          <span className="tabular-nums">{render(key, after[key])}</span>
-        </li>
-      ))}
-    </ul>
-  )
-}
-
-const LABELS: Record<string, string> = {
-  rent_cents: 'Rent',
-  other_cents: 'Other charges',
-  total_cents: 'Total',
-  due_date: 'Due date',
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {}
-}
-
-function render(key: string, value: unknown): string {
-  if (value === undefined || value === null) return '—'
-  if (key.endsWith('_cents') && typeof value === 'number') return formatCents(value)
-  return String(value)
 }

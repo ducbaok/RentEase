@@ -2,13 +2,12 @@
  * Portal invitation email (kind 'portal_invite').
  *
  * A pure builder: given who is being invited and where to sign in, it returns
- * the Notification payload. It lives here in stream 2A's area during the batch;
- * the merge onto main folds it into lib/notifications/templates/ alongside 2B's
- * templates (which land first). Keeping it pure means it is unit-tested without
- * a mail provider.
+ * the Notification payload. Stream 2A wrote it inside its own area during
+ * Batch 2; it moved here in 3B (bug B2-2) to sit alongside the other templates.
+ * Keeping it pure means it is unit-tested without a mail provider.
  */
 
-import type { Notification } from '@/lib/notifications/types'
+import type { Notification } from '../types'
 
 export interface PortalInviteInput {
   to: string

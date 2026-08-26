@@ -1,15 +1,17 @@
 /**
  * Maintenance status-change email (kind 'maintenance_status_changed', AC8.1).
  *
- * Pure builder, unit-tested without a provider. Stream 2A owns it during the
- * batch; folded into lib/notifications/templates/ at merge (2B lands first).
+ * Pure builder, unit-tested without a provider. Stream 2A wrote it inside its
+ * own area during Batch 2 and it moved here in 3B (bug B2-2) — every template
+ * now sits beside the provider interface it is built for, so "where do emails
+ * live" has one answer.
  *
  * The idempotencyKey ties one email to one (request, status) so a provider that
  * dedupes never sends the same "now in progress" twice — a soft second line of
  * defence, since the operator only advances a status once anyway.
  */
 
-import type { Notification } from '@/lib/notifications/types'
+import type { Notification } from '../types'
 import {
   MAINTENANCE_STATUS_LABELS,
   MAINTENANCE_STATUS_SUMMARY,

@@ -18,6 +18,10 @@
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
     "db:types": "supabase gen types typescript --local > lib/types/database.ts",
+    "demo:reset": "node scripts/demo-reset.mjs",
+    "deploy:check-env": "node scripts/check-deploy-env.mjs",
+    "deploy:verify": "node scripts/verify-deployment.mjs",
+    "stripe:products": "node scripts/stripe-products.mjs",
     "sot:save": "node scripts/save-sot.mjs"
   },
   "dependencies": {

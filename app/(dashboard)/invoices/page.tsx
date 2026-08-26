@@ -50,6 +50,9 @@ export default async function InvoicesPage({
         actions={
           <div className="flex items-center gap-2">
             <PeriodNav period={period} basePath="/invoices" />
+            <Button asChild variant="outline">
+              <Link href="/invoices/audit">Change history</Link>
+            </Button>
             <Button asChild>
               <Link href={`/invoices/issue?period=${period}` as Route}>
                 Issue invoices for {period}

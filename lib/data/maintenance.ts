@@ -18,7 +18,7 @@ import { createClient } from '@/lib/supabase/server'
 import { requireOperator, requireTenant } from '@/lib/auth'
 import { APP_URL } from '@/lib/env'
 import { getNotificationProvider } from '@/lib/notifications/providers'
-import { buildMaintenanceStatusEmail } from '@/lib/data/maintenance-emails'
+import { buildMaintenanceStatusEmail } from '@/lib/notifications/templates/maintenance'
 import {
   canTransition,
   maintenancePhotoPath,

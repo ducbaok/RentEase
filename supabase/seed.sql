@@ -15,6 +15,21 @@
 --     bob@lakeview.test     owner
 --     sam@resident.test     unit A1
 --
+--   Riverbend Residential (demo org, D23) — SKELETON ONLY
+--     demo-owner@example.com    owner
+--     demo-manager@example.com  manager
+--     The organization, its two operators and a subscription that never
+--     expires are created here; the properties, leases, invoices and the rest
+--     are NOT. They are a pure function of today's date and are written by
+--     app/api/cron/demo-reset (`pnpm demo:reset`), which is also what rebuilds
+--     them every night. One definition of the demo dataset, not two that drift.
+--
+--   super@rentease.test — the product back office (D11)
+--     A row in super_admins, which has no INSERT policy: membership can only
+--     be granted by direct SQL, and this is that SQL. It exists so the e2e
+--     suite can prove the (super) area both works for a super admin and turns
+--     everyone else away.
+--
 -- Password for every account: password123
 --
 -- Invoice statuses are NOT written here. They are derived by the triggers in
@@ -43,7 +58,12 @@ from (values
   ('a0000000-0000-4000-8000-000000000020'::uuid, 'dana@resident.test'),
   ('a0000000-0000-4000-8000-000000000021'::uuid, 'ray@resident.test'),
   ('b0000000-0000-4000-8000-000000000010'::uuid, 'bob@lakeview.test'),
-  ('b0000000-0000-4000-8000-000000000020'::uuid, 'sam@resident.test')
+  ('b0000000-0000-4000-8000-000000000020'::uuid, 'sam@resident.test'),
+  -- Demo operators. @example.com is reserved and cannot receive mail (D23).
+  ('d0000000-0000-4000-8000-000000000010'::uuid, 'demo-owner@example.com'),
+  ('d0000000-0000-4000-8000-000000000011'::uuid, 'demo-manager@example.com'),
+  -- The product back office. Belongs to no organization, by design.
+  ('e0000000-0000-4000-8000-000000000001'::uuid, 'super@rentease.test')
 ) as u(id, email);
 
 insert into auth.identities (
@@ -171,3 +191,48 @@ insert into public.maintenance_requests (id, org_id, unit_id, tenant_id, title, 
   ('a0000000-0000-4000-8000-000000000060', 'a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000101', 'a0000000-0000-4000-8000-000000000030', 'Kitchen faucet is leaking', 'Drips steadily even when closed.', 'submitted'),
   ('a0000000-0000-4000-8000-000000000061', 'a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000102', 'a0000000-0000-4000-8000-000000000031', 'Bedroom window will not latch', 'Latch spins without catching.',  'in_progress'),
   ('b0000000-0000-4000-8000-000000000060', 'b0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000101', 'b0000000-0000-4000-8000-000000000030', 'AC making a rattling noise',    null,                             'submitted');
+
+-- ===========================================================================
+-- The demo organization (D23) — skeleton only
+--
+-- What is here: the organization, its two operators, and a subscription that
+-- can never expire. What is NOT here: properties, units, residents, leases,
+-- readings, invoices, payments, maintenance. Those depend on TODAY'S date —
+-- all four invoice statuses have to be visible on every day of the year — so
+-- they cannot be written as static SQL without going stale within a week.
+--
+-- They are built instead by app/api/cron/demo-reset from a pure function of
+-- the anchor day, which is the same code the nightly reset runs. Two copies of
+-- a dataset drift; one copy cannot. Fill the demo after a reset with:
+--
+--   pnpm demo:reset
+--
+-- D23 constraint 2 is set here and re-asserted on every reset: an ACTIVE
+-- subscription on the top plan, ending in 2099. A public demo that locks
+-- itself behind an expired trial overnight is worse than no demo.
+-- ===========================================================================
+insert into public.organizations (id, name, plan, status) values
+  ('d0000000-0000-4000-8000-000000000001', 'Riverbend Residential (demo)', 'pro', 'active');
+
+insert into public.users (id, org_id, email, full_name, role) values
+  ('d0000000-0000-4000-8000-000000000010', 'd0000000-0000-4000-8000-000000000001', 'demo-owner@example.com',   'Dana Rivera (demo owner)',   'owner'),
+  ('d0000000-0000-4000-8000-000000000011', 'd0000000-0000-4000-8000-000000000001', 'demo-manager@example.com', 'Marco Ellis (demo manager)', 'manager');
+
+insert into public.subscriptions (org_id, plan, status, period_end) values
+  ('d0000000-0000-4000-8000-000000000001', 'pro', 'active', '2099-12-31 00:00+00');
+
+-- ===========================================================================
+-- The product back office (D11 / D12)
+--
+-- super_admins has no INSERT policy, so this INSERT — running as the seed's
+-- superuser connection, not through the API — is the only kind of statement
+-- that can create a member. That is the point of the design: no account can
+-- promote itself, and there is no code path in the application that grants it.
+--
+-- This account belongs to no organization and has no tenant record, so it is
+-- neither an operator nor a resident: it fails every layer-1 and layer-2
+-- policy by construction and can read exactly two things, the organization
+-- list and the subscription list.
+-- ===========================================================================
+insert into public.super_admins (user_id, note) values
+  ('e0000000-0000-4000-8000-000000000001', 'Local fixture — the e2e suite signs in as this account.');

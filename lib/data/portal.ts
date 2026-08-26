@@ -16,7 +16,7 @@ import { requireOperator, requireTenant } from '@/lib/auth'
 import { APP_URL } from '@/lib/env'
 import { parseBreakdown, type Breakdown } from '@/lib/domain/breakdown'
 import { getNotificationProvider } from '@/lib/notifications/providers'
-import { buildPortalInviteEmail } from '@/lib/data/portal-emails'
+import { buildPortalInviteEmail } from '@/lib/notifications/templates/portal'
 import type { Database } from '@/lib/types/database'
 
 type InvoiceRow = Database['public']['Tables']['invoices']['Row']
