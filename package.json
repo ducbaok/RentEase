@@ -18,6 +18,7 @@
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
     "db:types": "supabase gen types typescript --local > lib/types/database.ts",
+    "demo:reset": "node scripts/demo-reset.mjs",
     "sot:save": "node scripts/save-sot.mjs"
   },
   "dependencies": {
