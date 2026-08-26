@@ -28,8 +28,8 @@ export default async function MagicLinkPage({
       <div className="space-y-1.5">
         <h1 className="text-xl font-semibold tracking-tight">Resident sign-in</h1>
         <p className="text-sm text-muted-foreground">
-          Enter the email your landlord invited. We&apos;ll send you a one-time link — no password to
-          remember.
+          Enter the email your landlord has on file for you. We&apos;ll send you a one-time link — no
+          password to remember.
         </p>
       </div>
       {message ? (

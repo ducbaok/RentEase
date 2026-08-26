@@ -65,9 +65,21 @@ test.describe('access', () => {
     await expect(page).toHaveURL(/\/sign-in/)
   })
 
-  test('the resident portal is unreachable without signing in', async ({ page }) => {
+  // Residents have no password, so bouncing them to the operator form would be
+  // a dead end: it asks for a password they were never given, and its only link
+  // creates a landlord account. Every reminder email points at /portal, so this
+  // redirect is the first thing a resident sees.
+  test('the resident portal is unreachable without signing in, and sends residents to the magic link', async ({
+    page,
+  }) => {
     await page.goto('/portal')
-    await expect(page).toHaveURL(/\/sign-in/)
+    await expect(page).toHaveURL(/\/magic-link/)
+  })
+
+  test('the operator sign-in page offers residents their own door', async ({ page }) => {
+    await page.goto('/sign-in')
+    await page.getByRole('link', { name: /sign in with an emailed link/i }).click()
+    await expect(page).toHaveURL(/\/magic-link/)
   })
 
   test('a wrong password says nothing about whether the account exists', async ({ page }) => {

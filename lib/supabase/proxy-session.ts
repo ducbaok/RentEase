@@ -57,6 +57,17 @@ export async function updateSession(request: NextRequest) {
 
   if (!user && !isPublic(request.nextUrl.pathname)) {
     const url = request.nextUrl.clone()
+
+    // Residents have no password, so /sign-in is a door they cannot open: its
+    // form wants a password and its only link creates a LANDLORD account. Their
+    // door is the magic link. This matters because every reminder email points
+    // at /portal, and a resident who has not signed in yet arrives here first.
+    if (request.nextUrl.pathname.startsWith('/portal')) {
+      url.pathname = '/magic-link'
+      url.search = ''
+      return NextResponse.redirect(url)
+    }
+
     url.pathname = '/sign-in'
     url.searchParams.set('next', request.nextUrl.pathname)
     return NextResponse.redirect(url)

@@ -101,7 +101,35 @@ const CHECKS = [
       if (/localhost|127\.0\.0\.1/.test(value)) {
         return 'still points at localhost — this URL goes into every email a resident receives'
       }
-      return isHttpsUrl(value) || 'should be the full https origin, with no trailing path'
+      if (!isHttpsUrl(value)) return 'should be the full https origin, with no trailing path'
+      if (value.endsWith('/')) return 'has a trailing slash — drop it'
+
+      const host = value.replace(/^https:\/\//, '').replace(/\/.*$/, '')
+
+      // Shape checks alone let the real mistake through. A *.vercel.app origin
+      // is https, is not localhost, and is still wrong: it is not the domain
+      // the mail is sent FROM, and a per-deployment URL stops resolving once
+      // that deployment is pruned. Found in production only because someone
+      // read the link in a reminder email instead of clicking it (B4-6).
+      if (stage === 'production' && /\.vercel\.app$/.test(host)) {
+        return (
+          `is ${host}, a Vercel-assigned origin rather than the custom domain — every resident ` +
+          'email would link away from the domain it was sent from, and a per-deployment URL expires'
+        )
+      }
+
+      // The link in the body and the address in the From header have to agree.
+      // A mismatch is what a spam filter scores as phishing, and what a careful
+      // resident refuses to click.
+      const fromDomain = (String(env.EMAIL_FROM ?? '').match(/@([^\s>]+)/) ?? [])[1]
+      if (fromDomain && host !== fromDomain && !host.endsWith(`.${fromDomain}`)) {
+        return (
+          `is on ${host} but EMAIL_FROM sends from @${fromDomain} — links that leave the sending ` +
+          'domain read as phishing to filters and to residents'
+        )
+      }
+
+      return true
     },
   },
   {

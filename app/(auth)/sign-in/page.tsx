@@ -10,7 +10,11 @@ export default function SignInPage() {
       <div className="space-y-1.5">
         <h1 className="text-xl font-semibold tracking-tight">Sign in</h1>
         <p className="text-sm text-muted-foreground">
-          Residents: use the link from your invitation email instead.
+          Residents have no password —{' '}
+          <Link href="/magic-link" className="font-medium text-primary hover:underline">
+            sign in with an emailed link
+          </Link>
+          .
         </p>
       </div>
       <SignInForm />
