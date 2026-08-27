@@ -1,0 +1,833 @@
+/*
+ * The public face of RentEase: the landing page and the handbook.
+ *
+ * This is a deliberately different visual world from the signed-in app — a
+ * ledger, not a dashboard — so it is scoped to a CSS Module and every rule is
+ * nested under `.root`. Nothing here can reach the operator interface, and the
+ * app's Tailwind tokens are not used, on purpose: marketing type and colour
+ * change on a different schedule from product UI.
+ *
+ * Light only, matching the app. The dark tokens exist so that whenever a theme
+ * toggle is added, these pages come along instead of staying stubbornly bright;
+ * nothing sets `.dark` today.
+ */
+
+.root {
+  --ink: #16211c;
+  --ink-soft: #47584f;
+  --ink-faint: #7b8a82;
+  --paper: #f3f6f0;
+  --paper-2: #e9efe4;
+  --bar: #dfe9d9;
+  --rule: #cbd8c7;
+  --rule-hair: #dde5d9;
+  --accent: #a8312a;
+  --electric: #9a6414;
+  --water: #2c6a88;
+  --warn-bg: #f6ecdf;
+  --warn-edge: #d3a86a;
+  --shadow: 0 1px 0 rgb(22 33 28 / 6%), 0 12px 32px -20px rgb(22 33 28 / 45%);
+
+  --step--1: clamp(0.79rem, 0.77rem + 0.1vw, 0.85rem);
+  --step-0: clamp(1rem, 0.97rem + 0.16vw, 1.09rem);
+  --step-1: clamp(1.2rem, 1.13rem + 0.34vw, 1.42rem);
+  --step-2: clamp(1.5rem, 1.36rem + 0.68vw, 1.95rem);
+  --step-3: clamp(1.95rem, 1.66rem + 1.4vw, 2.9rem);
+  --step-4: clamp(2.5rem, 1.9rem + 2.9vw, 4.4rem);
+
+  --measure: 34rem;
+  --col: 61rem;
+
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body), "Iowan Old Style", Georgia, serif;
+  font-size: var(--step-0);
+  line-height: 1.62;
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+}
+
+:global(.dark) .root {
+  --ink: #e3e9dd;
+  --ink-soft: #a3b1a6;
+  --ink-faint: #74847a;
+  --paper: #101815;
+  --paper-2: #16211c;
+  --bar: #1b2822;
+  --rule: #2c3d34;
+  --rule-hair: #22302a;
+  --accent: #e07d72;
+  --electric: #d9a95f;
+  --water: #7cb6cf;
+  --warn-bg: #241d12;
+  --warn-edge: #7a5f34;
+  --shadow: 0 1px 0 rgb(0 0 0 / 40%), 0 12px 32px -20px rgb(0 0 0 / 90%);
+}
+
+.root {
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display), "Helvetica Neue", Arial, sans-serif;
+    text-wrap: balance;
+    letter-spacing: -0.02em;
+  }
+
+  a {
+    color: var(--accent);
+  }
+
+  a:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+}
+
+.wrap {
+  width: min(100% - 2.5rem, var(--col));
+  margin-inline: auto;
+}
+
+.eyebrow {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: var(--step--1);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0;
+}
+
+/* ---------------------------------------------------------------- masthead */
+
+.masthead {
+  border-bottom: 1px solid var(--rule);
+  padding-block: 1.15rem;
+
+  .wrap {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+}
+
+.wordmark {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 900;
+  font-size: var(--step-1);
+  letter-spacing: -0.02em;
+  margin: 0;
+  color: var(--ink);
+  text-decoration: none;
+
+  span {
+    color: var(--accent);
+  }
+}
+
+/* -------------------------------------------------------------------- hero */
+
+.hero {
+  padding-block: clamp(3rem, 8vw, 6rem) 0;
+
+  h1 {
+    font-weight: 900;
+    font-size: var(--step-4);
+    line-height: 0.98;
+    letter-spacing: -0.035em;
+    margin: 1.4rem 0 0;
+    max-width: 15ch;
+  }
+
+  h1 em {
+    font-style: normal;
+    color: var(--accent);
+  }
+}
+
+.lede {
+  max-width: var(--measure);
+  margin: 1.5rem 0 0;
+  font-size: var(--step-1);
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem 1.25rem;
+  align-items: center;
+  margin-top: 2.2rem;
+}
+
+.btn {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 700;
+  font-size: var(--step--1);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-decoration: none;
+  padding: 0.82em 1.5em;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+  transition: background 0.18s ease, color 0.18s ease;
+
+  &:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+}
+
+.btnGhost {
+  background: transparent;
+  color: var(--ink);
+
+  &:hover {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--paper);
+  }
+}
+
+/* ------------------------------------------------------------- demo strip */
+
+.demo {
+  margin-top: 2.4rem;
+  max-width: var(--measure);
+  border-top: 2px solid var(--ink);
+  border-bottom: 1px solid var(--rule);
+  padding-block: 1.1rem 1.2rem;
+}
+
+.demoHead {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 700;
+  font-size: var(--step-0);
+  letter-spacing: -0.012em;
+  margin: 0;
+}
+
+.demoCreds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 2.5rem;
+  margin: 0.85rem 0 0;
+
+  div {
+    display: flex;
+    align-items: baseline;
+    gap: 0.7rem;
+  }
+
+  dt {
+    font-family: var(--font-mono), monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+
+  dd {
+    margin: 0;
+    font-family: var(--font-mono), monospace;
+    font-size: var(--step--1);
+    font-weight: 500;
+    user-select: all;
+  }
+}
+
+.demoNote {
+  margin: 0.9rem 0 0;
+  font-size: var(--step--1);
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+/* -------------------------------------------------------------- the bill */
+
+.billFrame {
+  margin-top: clamp(2.5rem, 6vw, 4.5rem);
+  overflow-x: auto;
+}
+
+.bill {
+  min-width: 33rem;
+  border: 1px solid var(--rule);
+  background: var(--paper-2);
+  box-shadow: var(--shadow);
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: var(--step--1);
+    font-variant-numeric: tabular-nums;
+  }
+
+  tbody tr:nth-child(odd) {
+    background: var(--bar);
+  }
+
+  td,
+  th {
+    padding: 0.72rem 1.4rem;
+    text-align: left;
+    vertical-align: baseline;
+  }
+
+  th {
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-size: 0.68rem;
+    color: var(--ink-faint);
+    padding-block: 0.6rem;
+  }
+
+  tfoot td {
+    border-top: 1px solid var(--rule);
+    font-weight: 600;
+    font-size: var(--step-0);
+  }
+}
+
+.billHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1.1rem 1.4rem;
+  border-bottom: 1px solid var(--rule);
+
+  strong {
+    font-family: var(--font-display), sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+}
+
+.num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.work {
+  color: var(--ink-soft);
+}
+
+.due {
+  color: var(--accent);
+}
+
+.swatch {
+  display: inline-block;
+  width: 0.55em;
+  height: 0.55em;
+  margin-right: 0.55em;
+  vertical-align: baseline;
+}
+
+.swatchE {
+  background: var(--electric);
+}
+
+.swatchW {
+  background: var(--water);
+}
+
+.billNote {
+  padding: 0.95rem 1.4rem;
+  border-top: 1px solid var(--rule-hair);
+  font-size: var(--step--1);
+  color: var(--ink-soft);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ---------------------------------------------------------------- sections */
+
+.section {
+  padding-block: clamp(3.5rem, 9vw, 6.5rem);
+
+  & + & {
+    border-top: 1px solid var(--rule-hair);
+  }
+
+  h2 {
+    font-weight: 900;
+    font-size: var(--step-3);
+    line-height: 1.04;
+    letter-spacing: -0.028em;
+    margin: 0.9rem 0 0;
+    max-width: 20ch;
+  }
+}
+
+.sectionLede {
+  max-width: var(--measure);
+  margin: 1.1rem 0 0;
+  color: var(--ink-soft);
+}
+
+/* ------------------------------------------------ the month: a real sequence */
+
+.steps {
+  margin: 2.8rem 0 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: grid;
+    grid-template-columns: 3.2rem 1fr;
+    gap: 0 1.4rem;
+    padding-block: 1.5rem;
+    border-top: 1px solid var(--rule-hair);
+    align-items: start;
+  }
+
+  li:last-child {
+    border-bottom: 1px solid var(--rule-hair);
+  }
+
+  h3 {
+    margin: 0;
+    font-size: var(--step-1);
+    font-weight: 700;
+    letter-spacing: -0.015em;
+  }
+
+  p {
+    margin: 0.45rem 0 0;
+    color: var(--ink-soft);
+    max-width: var(--measure);
+  }
+
+  code {
+    font-family: var(--font-mono), monospace;
+    font-size: 0.88em;
+    background: var(--bar);
+    padding: 0.1em 0.42em;
+  }
+}
+
+.stepNum {
+  font-family: var(--font-mono), monospace;
+  font-size: var(--step--1);
+  color: var(--accent);
+  padding-top: 0.35em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------- guardrails: ledger rows */
+
+.ledger {
+  margin: 2.8rem 0 0;
+  border-top: 1px solid var(--rule);
+}
+
+.ledgerRow {
+  display: grid;
+  grid-template-columns: minmax(11rem, 15rem) 1fr;
+  gap: 0.4rem 2rem;
+  padding-block: 1.35rem;
+  border-bottom: 1px solid var(--rule-hair);
+
+  dt {
+    font-family: var(--font-display), sans-serif;
+    font-weight: 700;
+    font-size: var(--step-0);
+    letter-spacing: -0.012em;
+    line-height: 1.35;
+  }
+
+  dd {
+    margin: 0;
+    color: var(--ink-soft);
+  }
+}
+
+/* ------------------------------------------------------------ portal split */
+
+.split {
+  margin-top: 2.8rem;
+  display: grid;
+  gap: 2.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+
+  h3 {
+    margin: 0 0 0.5rem;
+    font-size: var(--step-0);
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+
+  p {
+    margin: 0;
+    color: var(--ink-soft);
+  }
+}
+
+.tag {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: 0.7rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+/* ------------------------------------------------------------------- scope */
+
+.scope {
+  margin: 2.2rem 0 0;
+  padding: 0;
+  list-style: none;
+  columns: 2;
+  column-gap: 2.5rem;
+  font-family: var(--font-mono), monospace;
+  font-size: var(--step--1);
+  color: var(--ink-soft);
+
+  li {
+    break-inside: avoid;
+    padding-block: 0.5rem;
+    border-bottom: 1px solid var(--rule-hair);
+  }
+
+  li::before {
+    content: "—";
+    color: var(--accent);
+    margin-right: 0.7em;
+  }
+}
+
+/* ------------------------------------------------------------------ footer */
+
+.footer {
+  border-top: 1px solid var(--rule);
+  padding-block: 2rem 3rem;
+  font-family: var(--font-mono), monospace;
+  font-size: var(--step--1);
+  color: var(--ink-faint);
+
+  .wrap {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  a {
+    color: var(--ink-soft);
+  }
+}
+
+/* =========================================================== the handbook */
+
+.page {
+  width: min(100% - 2.5rem, 68rem);
+  margin-inline: auto;
+}
+
+.docMasthead {
+  border-bottom: 1px solid var(--rule);
+  padding-block: 2.6rem 2rem;
+
+  h1 {
+    font-weight: 900;
+    font-size: var(--step-3);
+    line-height: 1.02;
+    margin: 0.9rem 0 0;
+  }
+}
+
+.docIntro {
+  max-width: var(--measure);
+  margin: 0.9rem 0 0;
+  color: var(--ink-soft);
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: 13rem minmax(0, 1fr);
+  gap: 0 3.5rem;
+  align-items: start;
+}
+
+.toc {
+  position: sticky;
+  top: 1.5rem;
+  padding-top: 2.6rem;
+  font-family: var(--font-mono), monospace;
+  font-size: var(--step--1);
+  line-height: 1.5;
+
+  ol {
+    list-style: none;
+    margin: 0.9rem 0 0;
+    padding: 0;
+    display: grid;
+    gap: 0.55rem;
+  }
+
+  a {
+    color: var(--ink-soft);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+  }
+
+  a:hover {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+}
+
+.tocWho {
+  display: block;
+  margin-top: 1.4rem;
+  color: var(--ink-faint);
+}
+
+.doc {
+  padding-bottom: 4rem;
+
+  section {
+    padding-block: 2.8rem;
+  }
+
+  section + section {
+    border-top: 1px solid var(--rule-hair);
+  }
+
+  h2 {
+    font-weight: 900;
+    font-size: var(--step-2);
+    margin: 0.7rem 0 0;
+    scroll-margin-top: 1.5rem;
+  }
+
+  h3 {
+    font-weight: 700;
+    font-size: var(--step-1);
+    margin: 2.2rem 0 0;
+  }
+
+  h4 {
+    font-weight: 700;
+    font-size: var(--step-0);
+    margin: 1.6rem 0 0;
+  }
+
+  p {
+    max-width: var(--measure);
+  }
+
+  section > p:first-of-type {
+    margin-top: 1rem;
+  }
+}
+
+/* what you actually click, printed as it appears on screen */
+.ui {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.86em;
+  background: var(--bar);
+  border-bottom: 1px solid var(--rule);
+  padding: 0.08em 0.4em;
+  white-space: nowrap;
+}
+
+.path {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.86em;
+  color: var(--ink-soft);
+  white-space: nowrap;
+
+  b {
+    color: var(--ink);
+    font-weight: 500;
+  }
+}
+
+.proc {
+  counter-reset: step;
+  list-style: none;
+  margin: 1.4rem 0 0;
+  padding: 0;
+  max-width: var(--measure);
+
+  > li {
+    counter-increment: step;
+    position: relative;
+    padding: 1.1rem 0 1.1rem 2.6rem;
+    border-top: 1px solid var(--rule-hair);
+  }
+
+  > li:last-child {
+    border-bottom: 1px solid var(--rule-hair);
+  }
+
+  > li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 1.25rem;
+    font-family: var(--font-mono), monospace;
+    font-size: var(--step--1);
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+
+  p {
+    margin: 0;
+  }
+
+  p + p {
+    margin-top: 0.5rem;
+    color: var(--ink-soft);
+  }
+}
+
+.plain {
+  max-width: var(--measure);
+  margin: 1rem 0 0;
+  padding-left: 1.1rem;
+
+  li {
+    margin-block: 0.4rem;
+  }
+}
+
+.tableFrame {
+  overflow-x: auto;
+  margin-top: 1.3rem;
+}
+
+.fields {
+  width: 100%;
+  min-width: 30rem;
+  border-collapse: collapse;
+  font-size: var(--step--1);
+
+  th,
+  td {
+    text-align: left;
+    vertical-align: baseline;
+    padding: 0.7rem 1rem 0.7rem 0;
+    border-bottom: 1px solid var(--rule-hair);
+  }
+
+  thead th {
+    font-family: var(--font-mono), monospace;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 0.68rem;
+    color: var(--ink-faint);
+    border-bottom: 1px solid var(--rule);
+  }
+
+  td:first-child {
+    white-space: nowrap;
+  }
+}
+
+.desc {
+  color: var(--ink-soft);
+}
+
+.note {
+  max-width: var(--measure);
+  margin: 1.4rem 0 0;
+  padding: 0.95rem 1.15rem;
+  background: var(--warn-bg);
+  border-left: 2px solid var(--warn-edge);
+  font-size: var(--step--1);
+  line-height: 1.55;
+
+  p {
+    margin: 0;
+    max-width: none;
+  }
+
+  p + p {
+    margin-top: 0.55rem;
+  }
+
+  strong {
+    font-family: var(--font-display), sans-serif;
+    font-weight: 700;
+  }
+}
+
+/* the block a landlord copies and sends to their residents */
+.handout {
+  max-width: var(--measure);
+  margin: 1.5rem 0 0;
+  padding: 1.4rem 1.5rem;
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+
+  h4 {
+    margin-top: 0;
+  }
+
+  p {
+    max-width: none;
+  }
+
+  ol {
+    padding-left: 1.2rem;
+    margin: 0.8rem 0 0;
+  }
+
+  li {
+    margin-block: 0.45rem;
+  }
+}
+
+/* --------------------------------------------------------------- responsive */
+
+@media (max-width: 56rem) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .toc {
+    position: static;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 1.5rem;
+  }
+}
+
+@media (max-width: 40rem) {
+  .ledgerRow {
+    grid-template-columns: 1fr;
+  }
+
+  .steps li {
+    grid-template-columns: 2.2rem 1fr;
+  }
+}
+
+@media (max-width: 34rem) {
+  .scope {
+    columns: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn {
+    transition: none;
+  }
+}

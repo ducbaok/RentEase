@@ -5,13 +5,16 @@ import { SUPABASE_ANON_KEY, SUPABASE_URL } from '@/lib/env'
 /**
  * Paths reachable without a session. '/magic-link' is here because a resident
  * accepting an invitation has no session yet — the page and its callback are how
- * they get one (F7). This only decides which page renders; RLS still decides
- * what any resulting session can read.
+ * they get one (F7). '/guide' is the handbook: a landlord deciding whether to
+ * sign up reads it before they have an account, and an existing one sends its
+ * resident section to people who will never have one. This only decides which
+ * page renders; RLS still decides what any resulting session can read.
  */
 const PUBLIC_PREFIXES = [
   '/sign-in',
   '/sign-up',
   '/magic-link',
+  '/guide',
   '/auth',
   '/api/webhooks',
   '/api/cron',

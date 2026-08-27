@@ -82,6 +82,14 @@ test.describe('access', () => {
     await expect(page).toHaveURL(/\/magic-link/)
   })
 
+  // The handbook is read by people who have no account and by residents who
+  // never will. Bouncing either of them to sign-in makes it useless.
+  test('the handbook is readable without an account', async ({ page }) => {
+    await page.goto('/guide')
+    await expect(page).toHaveURL(/\/guide/)
+    await expect(page.getByRole('heading', { name: 'Handbook', level: 1 })).toBeVisible()
+  })
+
   test('a wrong password says nothing about whether the account exists', async ({ page }) => {
     await signIn(page, SEED.ownerA.email, 'not-the-password', { expectSuccess: false })
     await expect(formAlert(page)).toContainText('did not match an account')
