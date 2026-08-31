@@ -14,6 +14,7 @@ import { z } from 'zod'
 import {
   anthropicProvider,
   getAiProvider,
+  isAiConfigured,
   outputFormatFor,
   setAiProvider,
   stubProvider,
@@ -68,6 +69,46 @@ describe('getAiProvider', () => {
 
     setAiProvider(null)
     expect(getAiProvider()).not.toBe(fake)
+  })
+})
+
+/**
+ * The branch the end-to-end suite cannot reach, because a run that proves the
+ * camera works is by definition a run with a provider installed.
+ *
+ * The meter screen asks this before drawing a camera button per row, so getting
+ * it wrong is visible in one direction (buttons that can only ever say "switched
+ * off") and invisible in the other (a configured deployment where the feature
+ * silently never appears).
+ */
+describe('isAiConfigured', () => {
+  const original = process.env.ANTHROPIC_API_KEY
+
+  beforeEach(() => setAiProvider(null))
+
+  afterEach(() => {
+    setAiProvider(null)
+    if (original === undefined) delete process.env.ANTHROPIC_API_KEY
+    else process.env.ANTHROPIC_API_KEY = original
+  })
+
+  it('is false with no key — there is nothing to offer, so nothing is offered', () => {
+    delete process.env.ANTHROPIC_API_KEY
+    expect(isAiConfigured()).toBe(false)
+  })
+
+  it('is true with a key', () => {
+    process.env.ANTHROPIC_API_KEY = FAKE_KEY
+    expect(isAiConfigured()).toBe(true)
+  })
+
+  it('follows the PROVIDER, not the variable, so an installed fake counts', () => {
+    // What makes the feature testable end to end: tests/e2e/meter-photo.spec.ts
+    // runs against a server with a scripted provider and no key at all, and the
+    // camera has to be there.
+    delete process.env.ANTHROPIC_API_KEY
+    setAiProvider({ name: 'scripted', async run() { return { ok: false, reason: 'network' } } })
+    expect(isAiConfigured()).toBe(true)
   })
 })
 

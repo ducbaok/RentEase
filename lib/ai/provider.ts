@@ -122,17 +122,54 @@ export function anthropicProvider(apiKey: string): AiProvider {
   }
 }
 
-let cached: AiProvider | null = null
+/**
+ * The chosen provider, held on globalThis rather than in a module variable.
+ *
+ * That looks like an affectation and is not. A module variable is per BUNDLE,
+ * and this module is bundled more than once: Next compiles instrumentation.ts
+ * as its own entry, so `setAiProvider` called from there writes a variable that
+ * the copy of this module inside a server action never reads. Measured, not
+ * assumed — an instrumentation hook that installed a fake provider left the
+ * request handler still holding the stub. A process-wide slot is the thing both
+ * copies can agree on, which is what makes setAiProvider a seam a whole running
+ * server can be tested through and not only a unit test.
+ *
+ * It also survives a hot reload, so a dev server stops building a new SDK
+ * client every time this file is touched.
+ */
+const PROVIDER = Symbol.for('rentease.ai.provider')
+
+type ProviderSlot = { [PROVIDER]?: AiProvider | null }
 
 /** The provider for this environment. Anthropic when configured, stub otherwise. */
 export function getAiProvider(): AiProvider {
-  if (cached) return cached
+  const slot = globalThis as ProviderSlot
+  const existing = slot[PROVIDER]
+  if (existing) return existing
+
   const apiKey = optionalServerEnv('ANTHROPIC_API_KEY')
-  cached = apiKey ? anthropicProvider(apiKey) : stubProvider
-  return cached
+  const chosen = apiKey ? anthropicProvider(apiKey) : stubProvider
+  slot[PROVIDER] = chosen
+  return chosen
 }
 
 /** Test seam: lets a test install a fake provider. Pass null to reset. */
 export function setAiProvider(provider: AiProvider | null): void {
-  cached = provider
+  ;(globalThis as ProviderSlot)[PROVIDER] = provider
+}
+
+/**
+ * Whether anything can actually read a photo here.
+ *
+ * The meter screen asks before it draws a camera button, because a button that
+ * can only ever answer "photo reading is switched off" is worse than no button:
+ * it advertises a feature this deployment does not have, once per row (AC9.5).
+ *
+ * It asks the PROVIDER rather than the environment variable on purpose. A test
+ * that installs a fake through setAiProvider() has a working provider and no
+ * key, and reading `process.env` here would hide the feature from exactly the
+ * test written to prove it works.
+ */
+export function isAiConfigured(): boolean {
+  return getAiProvider() !== stubProvider
 }

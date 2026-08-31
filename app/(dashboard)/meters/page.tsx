@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/shared/page-header'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
+import { isAiConfigured } from '@/lib/ai/provider'
 import { currentPeriod, formatPeriod, isPeriod, type Period } from '@/lib/domain/period'
 import { getMeterSheet } from '@/lib/data/meters'
 import { PeriodNav } from './period-nav'
@@ -71,7 +72,15 @@ export default async function MetersPage({
             </Alert>
           ) : null}
 
-          <ReadingGrid period={period} rows={rows} />
+          {/*
+            * Whether a camera button is drawn at all is decided here, on the
+            * server, because it is a fact about the deployment rather than
+            * about this landlord: with no provider configured every button
+            * could only ever answer "photo reading is switched off". Typing
+            * the numbers in is the normal path and is untouched either way
+            * (AC9.4).
+            */}
+          <ReadingGrid period={period} rows={rows} photoReading={isAiConfigured()} />
         </div>
       )}
     </>

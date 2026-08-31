@@ -70,6 +70,12 @@ const isSupabaseUrl = (value) => /^https:\/\/[a-z0-9-]+\.supabase\.(co|in)$/.tes
  * `required` is what a deploy cannot work without. `warn` is what it can start
  * without but should not run without — a warning is not a pass, it is a
  * decision someone has to make out loud.
+ *
+ * `required: 'when-set'` is the third case: a variable a deploy is genuinely
+ * allowed not to have, whose absence is therefore reported as a state rather
+ * than nagged about — but which must be RIGHT when it is there. Nobody has ever
+ * meant to configure a feature incorrectly, so "present and wrong" is a
+ * failure even though "absent" is fine.
  */
 const CHECKS = [
   {
@@ -162,6 +168,54 @@ const CHECKS = [
     },
   },
   {
+    name: 'ANTHROPIC_API_KEY',
+    /*
+     * The one variable here that may be missing without anybody deciding
+     * anything, so its absence is reported as a state and not as a warning.
+     * F9 offers a suggestion somebody accepts or types over; with no key the
+     * meter screen draws no camera button and the round is typed in, which is
+     * how every round was done before the feature existed (AC9.4). Section 5 of
+     * the deploy runbook says the same to whoever is deploying.
+     */
+    required: 'when-set',
+    absent: 'meter photo reading is off; the round is typed in, which is the normal path anyway',
+    /*
+     * Present, though, it has to be the key that WORKS, and "starts with
+     * sk-ant-" does not ask that. Three different keys satisfy the prefix and
+     * fail in production, each of them silently until the first landlord
+     * photographs a meter: an admin key, half a key, and a key with the quotes
+     * still on it. A shape test would pass all three.
+     */
+    check: (value) => {
+      if (value !== value.trim()) {
+        return 'has whitespace around it — the key is sent verbatim in a header, and a stray newline is a 401'
+      }
+      if (/^["']|["']$/.test(value)) {
+        return 'still has its quotes — those become part of the key and the API rejects it'
+      }
+      if (value.startsWith('sk-ant-admin')) {
+        return (
+          'is an ADMIN key. Those manage the organization and cannot call the Messages API, so ' +
+          'every photo would come back unread while the deploy looked configured'
+        )
+      }
+      if (!value.startsWith('sk-ant-api')) {
+        return 'is not an Anthropic API key — those start with sk-ant-api'
+      }
+      if (value.length < 60) {
+        return 'looks truncated; a whole key is around a hundred characters'
+      }
+      if (
+        value === env.RESEND_API_KEY ||
+        value === env.SUPABASE_SERVICE_ROLE_KEY ||
+        value === env.CRON_SECRET
+      ) {
+        return 'is the same string as another secret here — one of the two was pasted into the wrong line'
+      }
+      return true
+    },
+  },
+  {
     name: 'STRIPE_SECRET_KEY',
     required: !billingDeferred,
     skip: billingDeferred,
@@ -192,7 +246,7 @@ let warnings = 0
 
 console.log(`Checking ${file ?? 'the current environment'} for stage "${stage}"\n`)
 
-for (const { name, required, check, skip } of CHECKS) {
+for (const { name, required, check, skip, absent } of CHECKS) {
   if (skip) {
     console.log(`  SKIP  ${name} — billing deferred (D24), nothing to configure yet`)
     continue
@@ -201,7 +255,11 @@ for (const { name, required, check, skip } of CHECKS) {
   const value = env[name]
 
   if (!value) {
-    if (required) {
+    if (required === 'when-set') {
+      // Absence is a supported configuration here, not an oversight. Warning
+      // about it would only train the reader to ignore warnings.
+      console.log(`  off   ${name} is not set — ${absent}`)
+    } else if (required) {
       console.log(`  FAIL  ${name} is not set`)
       failures += 1
     } else {

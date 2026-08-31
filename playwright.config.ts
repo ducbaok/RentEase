@@ -40,5 +40,21 @@ export default defineConfig({
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
+    /*
+     * The meter photo tests need a provider that answers, and they must never
+     * reach Anthropic — an end-to-end run would spend money and its result
+     * would depend on a model's mood. This flag makes instrumentation.ts
+     * install the scripted provider, which reads its answer out of the upload
+     * itself (lib/ai/testing/scripted-provider.ts). Everything else in the run
+     * is the real application.
+     *
+     * Merged over process.env by Playwright, so .env.local still applies.
+     *
+     * The one way to lose it is `reuseExistingServer` attaching to a `pnpm dev`
+     * you started yourself, which was launched without the flag. Then the
+     * camera button is absent and tests/e2e/meter-photo.spec.ts says so by
+     * name rather than failing as a mystery.
+     */
+    env: { AI_FAKE_PROVIDER: '1' },
   },
 })
