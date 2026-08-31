@@ -1,6 +1,34 @@
 import nextCoreWebVitals from 'eslint-config-next/core-web-vitals'
 import nextTypeScript from 'eslint-config-next/typescript'
 
+/*
+ * The service-role client bypasses RLS entirely. Only the cron job and the
+ * Stripe webhook run without a user session and legitimately need it;
+ * everywhere else it would silently disable every access rule the product is
+ * sold on.
+ */
+const noServiceRoleClient = {
+  group: ['**/supabase/admin', '@/lib/supabase/admin'],
+  message:
+    'The service-role client bypasses RLS. Only app/api/cron/** and app/api/webhooks/** may import it. See docs/sot/20-architecture.md.',
+}
+
+/*
+ * Money is held by three deterministic layers — pure functions with unit tests,
+ * database triggers, and column constraints — and lib/domain is the first of
+ * them. AI output is non-deterministic and is only ever a SUGGESTION that a
+ * person confirms (D25); wiring it into the arithmetic would spoil the most
+ * expensive thing this project bought. The boundary is compiled rather than
+ * written down because a promise nobody enforces is just a sentence in
+ * docs/sot/40-decisions.md, and the person who breaks it will be the one who
+ * never read it.
+ */
+const noAiInDomain = {
+  group: ['@/lib/ai', '@/lib/ai/**', '**/lib/ai', '**/lib/ai/**', '../ai', '../ai/**'],
+  message:
+    'lib/domain is the deterministic money path and must not import lib/ai. AI output is a suggestion a person confirms, never an input to a calculation. See D25 in docs/sot/40-decisions.md.',
+}
+
 /**
  * eslint-config-next 16 ships native flat configs, so they are imported
  * directly. Do not reintroduce @eslint/eslintrc's FlatCompat here — wrapping an
@@ -32,27 +60,26 @@ const eslintConfig = [
   },
   {
     /*
-     * The service-role client bypasses RLS entirely. Only the cron job and the
-     * Stripe webhook run without a user session and legitimately need it;
-     * everywhere else it would silently disable every access rule the product
-     * is sold on. This rule is what makes that guarantee survive a new
+     * This rule is what makes the service-role guarantee survive a new
      * contributor who has not read docs/sot/20-architecture.md.
      */
     files: ['app/**', 'components/**', 'lib/**'],
     ignores: ['app/api/cron/**', 'app/api/webhooks/**', 'lib/supabase/admin.ts'],
     rules: {
-      'no-restricted-imports': [
-        'error',
-        {
-          patterns: [
-            {
-              group: ['**/supabase/admin', '@/lib/supabase/admin'],
-              message:
-                'The service-role client bypasses RLS. Only app/api/cron/** and app/api/webhooks/** may import it. See docs/sot/20-architecture.md.',
-            },
-          ],
-        },
-      ],
+      'no-restricted-imports': ['error', { patterns: [noServiceRoleClient] }],
+    },
+  },
+  {
+    /*
+     * lib/domain carries BOTH restrictions. Flat config overrides a rule's
+     * options rather than merging them, so this block has to restate the
+     * service-role pattern — hence the shared constants above. Listing it
+     * literally a second time would be the two-sources-of-truth bug the rule
+     * itself exists to prevent.
+     */
+    files: ['lib/domain/**'],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [noServiceRoleClient, noAiInDomain] }],
     },
   },
 ]
