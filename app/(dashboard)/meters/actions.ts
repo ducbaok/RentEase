@@ -2,6 +2,15 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { requireOperator } from '@/lib/auth'
+import { getAiProvider } from '@/lib/ai/provider'
+import type { MeterReadingSuggestion } from '@/lib/ai/schemas'
+import type { AiFailureReason } from '@/lib/ai/types'
+import {
+  MAX_PHOTO_BYTES,
+  photoMediaType,
+  readMeterPhoto,
+} from '@/lib/ai/tasks/meter-ocr'
 import { assertPeriod } from '@/lib/domain/period'
 import { saveReadings, type ReadingSubmission } from '@/lib/data/meters'
 
@@ -103,4 +112,100 @@ export async function saveReadingsAction(
   if (result.updated > 0) parts.push(`${result.updated} updated`)
 
   return { message: `Readings ${parts.join(', ')}.` }
+}
+
+// ---------------------------------------------------------------------------
+// Meter photo (F9) — READ ONLY
+// ---------------------------------------------------------------------------
+
+export interface MeterPhotoState {
+  /** What the model read, for the form to pre-fill. Absent when there is none. */
+  suggestion?: MeterReadingSuggestion
+  /**
+   * Why there is no suggestion, in a sentence a landlord can act on. Set
+   * whenever `suggestion` is not — the screen always has something to say, and
+   * what it says is never "an error occurred".
+   */
+  unavailable?: string
+}
+
+/**
+ * One sentence per way of not getting an answer.
+ *
+ * None of them are failures of the product: manual entry is the normal path and
+ * it is untouched (AC9.4). So none of them read like an outage, and none of
+ * them leak a provider message — a rate-limit body or a rejected-key error says
+ * things about our account, not about this photo.
+ */
+const NO_SUGGESTION: Record<AiFailureReason, string> = {
+  no_provider: 'Photo reading is switched off. Type the numbers in as usual.',
+  network: 'Could not reach the reading service just now. Type the numbers in as usual.',
+  invalid_output: 'Could not make out this photo. Type the numbers in, or try a closer shot.',
+  refused: 'Could not read this photo. Type the numbers in as usual.',
+}
+
+/**
+ * Reads a photo of a meter and offers the numbers. WRITES NOTHING.
+ *
+ * Three things about this action are load-bearing.
+ *
+ * 1. It is read-only, and that is structural rather than a promise. It does not
+ *    import saveReadings, it calls no data function, and it does not
+ *    revalidate: the only path from a photo to a stored row runs through a
+ *    person retyping or accepting the number and submitting the form, which is
+ *    saveReadingsAction (AC9.6). A suggestion is never a reading.
+ *
+ * 2. requireOperator() is first, and it is not a formality. This action spends
+ *    real money on our Anthropic key every time it runs. An unauthenticated
+ *    caller who can reach it is not a data leak — there is no data here — it is
+ *    an invoice, and one anybody with the endpoint could run up. The size cap
+ *    and the media-type check below are the second half of that: they are what
+ *    stops a signed-in operator from posting a 200 MB file, or a hundred of
+ *    them, before we have paid to find out it was not a meter.
+ *
+ * 3. It never throws (AC9.5). Every way this can go wrong returns a labelled
+ *    state, because a fault in the AI layer must not be able to take the meter
+ *    screen down with it. The one exception is deliberate: requireOperator()
+ *    sits OUTSIDE the try, since it signals "not signed in" by throwing Next's
+ *    redirect, and catching that would turn a redirect into a shrug.
+ */
+export async function readMeterPhotoAction(
+  _prev: MeterPhotoState,
+  formData: FormData,
+): Promise<MeterPhotoState> {
+  await requireOperator()
+
+  const photo = formData.get('photo')
+  if (!(photo instanceof File) || photo.size === 0) {
+    return { unavailable: 'Attach a photo of the meter first.' }
+  }
+
+  // The type is checked before the bytes are touched, so a video that was
+  // renamed to .jpg costs us a string comparison and nothing else.
+  const mediaType = photoMediaType(photo.type)
+  if (!mediaType) {
+    return { unavailable: 'That is not a photo. Attach a JPEG, PNG, WebP or GIF.' }
+  }
+
+  if (photo.size > MAX_PHOTO_BYTES) {
+    const limit = Math.floor(MAX_PHOTO_BYTES / 1_000_000)
+    return { unavailable: `That photo is over ${limit} MB. Take a smaller one, or type the numbers in.` }
+  }
+
+  try {
+    const data = Buffer.from(await photo.arrayBuffer()).toString('base64')
+    const result = await readMeterPhoto(getAiProvider(), { mediaType, data })
+
+    if (!result.ok) {
+      return { unavailable: NO_SUGGESTION[result.reason] }
+    }
+
+    return { suggestion: result.value }
+  } catch {
+    // readMeterPhoto() resolves rather than rejects by contract, so reaching
+    // here means something below it broke its own promise — an unreadable
+    // upload stream, a provider that threw. It is still not the meter screen's
+    // problem, and the person still has a keyboard.
+    return { unavailable: NO_SUGGESTION.network }
+  }
 }

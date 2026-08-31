@@ -1,0 +1,1 @@
+{"electric": null, "water": null, "confidence": "low"}
