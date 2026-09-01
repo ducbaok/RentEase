@@ -48,6 +48,7 @@ vi.mock('next/cache', () => cache)
 
 import { readMeterPhotoAction } from '@/app/(dashboard)/meters/actions'
 import { setAiProvider } from '@/lib/ai/provider'
+import { AI_CALL_WINDOWS, resetAiRateLimit } from '@/lib/ai/rate-limit'
 import { MAX_PHOTO_BYTES } from '@/lib/ai/tasks/meter-ocr'
 import type { AiProvider, AiResult } from '@/lib/ai/types'
 
@@ -73,10 +74,15 @@ describe('readMeterPhotoAction', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     setAiProvider(provider({ ok: true, value: GOOD }))
+    // The action counts calls per operator now, and every test in this file is
+    // the same operator. Without this the file would start failing partway down
+    // for a reason having nothing to do with the test that failed.
+    resetAiRateLimit()
   })
 
   afterEach(() => {
     setAiProvider(null)
+    resetAiRateLimit()
   })
 
   // -------------------------------------------------------------------------
@@ -248,5 +254,48 @@ describe('readMeterPhotoAction', () => {
 
     expect(state.suggestion).toBeUndefined()
     expect(JSON.stringify(state)).not.toContain('999999')
+  })
+
+  // -------------------------------------------------------------------------
+  // And there is a ceiling on how much one caller can spend.
+  // -------------------------------------------------------------------------
+
+  const BURST = AI_CALL_WINDOWS.find((window) => window.label === 'minute')!.max
+
+  it('stops calling the provider once the caller has had their burst', async () => {
+    const ai = provider({ ok: true, value: GOOD })
+    setAiProvider(ai)
+
+    for (let i = 0; i < BURST; i++) {
+      expect((await readMeterPhotoAction({}, form(photo(64)))).suggestion).toEqual(GOOD)
+    }
+    expect(ai.run).toHaveBeenCalledTimes(BURST)
+
+    const state = await readMeterPhotoAction({}, form(photo(64)))
+
+    // The whole point: the refusal lands BEFORE the money is spent.
+    expect(state.suggestion).toBeUndefined()
+    expect(state.unavailable).toMatch(/type the numbers in/i)
+    expect(ai.run).toHaveBeenCalledTimes(BURST)
+  })
+
+  it('still writes nothing when it is the limit doing the refusing', async () => {
+    for (let i = 0; i <= BURST; i++) await readMeterPhotoAction({}, form(photo(64)))
+
+    expect(meters.saveReadings).not.toHaveBeenCalled()
+    expect(cache.revalidatePath).not.toHaveBeenCalled()
+  })
+
+  it('does not spend the round on uploads that were never going to cost anything', async () => {
+    const ai = provider({ ok: true, value: GOOD })
+    setAiProvider(ai)
+
+    // A pocketful of videos: refused before the provider, so refused before the
+    // counter. An operator fumbling the picker keeps their whole allowance.
+    for (let i = 0; i < BURST * 2; i++) {
+      await readMeterPhotoAction({}, form(photo(64, 'video/mp4')))
+    }
+
+    expect((await readMeterPhotoAction({}, form(photo(64)))).suggestion).toEqual(GOOD)
   })
 })

@@ -6,6 +6,7 @@ import { requireOperator } from '@/lib/auth'
 import { getAiProvider } from '@/lib/ai/provider'
 import type { MeterReadingSuggestion } from '@/lib/ai/schemas'
 import type { AiFailureReason } from '@/lib/ai/types'
+import { recordAiCall } from '@/lib/ai/rate-limit'
 import {
   MAX_PHOTO_BYTES,
   photoMediaType,
@@ -163,6 +164,12 @@ const NO_SUGGESTION: Record<AiFailureReason, string> = {
  *    stops a signed-in operator from posting a 200 MB file, or a hundred of
  *    them, before we have paid to find out it was not a meter.
  *
+ *    Being signed in is a lower bar than it sounds, though, which is why the
+ *    count in lib/ai/rate-limit.ts is here too: the landing page publishes
+ *    working demo credentials (D23), so the set of people who can reach this
+ *    action is the set of people who can read the home page. Identity bounds
+ *    WHO spends; only the count bounds HOW MUCH.
+ *
  * 3. It never throws (AC9.5). Every way this can go wrong returns a labelled
  *    state, because a fault in the AI layer must not be able to take the meter
  *    screen down with it. The one exception is deliberate: requireOperator()
@@ -173,7 +180,7 @@ export async function readMeterPhotoAction(
   _prev: MeterPhotoState,
   formData: FormData,
 ): Promise<MeterPhotoState> {
-  await requireOperator()
+  const operator = await requireOperator()
 
   const photo = formData.get('photo')
   if (!(photo instanceof File) || photo.size === 0) {
@@ -190,6 +197,21 @@ export async function readMeterPhotoAction(
   if (photo.size > MAX_PHOTO_BYTES) {
     const limit = Math.floor(MAX_PHOTO_BYTES / 1_000_000)
     return { unavailable: `That photo is over ${limit} MB. Take a smaller one, or type the numbers in.` }
+  }
+
+  /*
+   * Counted here rather than at the top, so that only the calls which are about
+   * to cost something count. Somebody fumbling a video and two PDFs into the
+   * picker has spent nothing and has used none of their round.
+   */
+  const budget = recordAiCall(operator.userId, Date.now())
+  if (!budget.ok) {
+    const minutes = Math.max(1, Math.ceil(budget.retryAfterMs / 60_000))
+    return {
+      unavailable:
+        `That is a lot of photos at once. Photo reading pauses for about ${minutes} ` +
+        `minute${minutes === 1 ? '' : 's'} — type the numbers in as usual.`,
+    }
   }
 
   try {
