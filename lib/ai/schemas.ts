@@ -11,13 +11,29 @@
 import { z } from 'zod'
 
 /**
- * The largest reading the database can hold: `meter_readings.electric_curr` and
- * `water_curr` are `numeric(12, 2)` with a `>= 0` check
- * (supabase/migrations/20260825000400_tables_billing.sql). A model that reads
- * eleven digits off a five-digit dial has misread it, so the bound rejects the
- * answer here rather than letting the insert fail later.
+ * The largest reading a suggestion is allowed to carry.
+ *
+ * This is the ENTRY SCREEN's ceiling, not the column's. The column holds far
+ * more — `meter_readings.electric_curr` and `water_curr` are `numeric(12, 2)`
+ * with a `>= 0` check (supabase/migrations/20260825000400_tables_billing.sql)
+ * — but app/(dashboard)/meters/actions.ts refuses anything above this when the
+ * form is submitted, and it refuses it with "Some readings are not numbers",
+ * which is both untrue and unactionable.
+ *
+ * Bounding a suggestion by the column rather than by the form is how a number
+ * gets offered that cannot be saved: it appears in the box, the operator
+ * presses Save, and the screen tells them they typed something that is not a
+ * number. Offering only what the save path will take is what keeps the empty
+ * box the honest fallback AC9.3 intends it to be.
+ *
+ * A model that reads nine digits off a five-digit dial has misread it either
+ * way, so nothing legible is lost by the lower bound.
+ *
+ * tests/unit/ai/ceilings.test.ts holds the two ends together by running a
+ * suggestion at exactly this value through saveReadingsAction, and one just
+ * above it, so the two numbers cannot drift apart again.
  */
-export const MAX_METER_READING = 9_999_999_999.99
+export const MAX_METER_READING = 99_999_999
 
 /**
  * One dial. `null` is a valid answer and the RIGHT answer when the digits are
