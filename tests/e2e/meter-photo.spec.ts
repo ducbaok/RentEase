@@ -47,16 +47,28 @@ async function signIn(page: Page) {
 /**
  * A "photograph" whose bytes tell the scripted provider what to answer.
  *
- * It is not an image, and it does not need to be: nothing in the path decodes
- * it. The browser reports the media type the upload declares, the action checks
- * that type and the size, and the provider reads the line below. What is being
- * tested is what happens to an answer, not JPEG.
+ * The bytes are a REAL PNG, and that is the load-bearing part. This upload used
+ * to be the marker line by itself, on the reasoning that nothing in the path
+ * decodes it. That reasoning was right about the server and wrong about the
+ * browser, and it quietly disarmed the one assertion in this file about SEEING
+ * the photograph: `toBeVisible()` is true of an <img> that has a box and an
+ * accessible name whether or not it ever drew a pixel.
+ *
+ * The directive is appended AFTER the PNG's IEND chunk. A decoder stops there,
+ * so the browser renders the picture and ignores the rest, while the provider —
+ * which scans the raw bytes for its marker — still finds its script. One upload
+ * is therefore both a real image and a real instruction.
  */
+const ONE_PIXEL_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC',
+  'base64',
+)
+
 function scriptedPhoto(script: string) {
   return {
     name: 'meter.png',
     mimeType: 'image/png',
-    buffer: Buffer.from(`RENTEASE-FAKE ${script}\n`),
+    buffer: Buffer.concat([ONE_PIXEL_PNG, Buffer.from(`\nRENTEASE-FAKE ${script}\n`)]),
   }
 }
 
@@ -128,6 +140,24 @@ test('AC9.1/9.2/9.6: a photo fills the boxes, and only a person saves them', asy
   // AC9.2 — and the picture they came from is on screen next to them, so the
   // person about to accept them can see what they are accepting.
   await expect(thumbnail).toBeVisible()
+
+  /*
+   * On screen is not the same as SHOWN, and AC9.2 is about the second one. An
+   * <img> whose object URL was handed back too early still has a box, still has
+   * its alt text, and still passes toBeVisible() — while the person looks at a
+   * broken picture and confirms a number against nothing.
+   *
+   * That is not hypothetical: the revoke bookkeeping in reading-grid.tsx
+   * (photosRef, isSettled, two effects) is exactly the machinery that would
+   * produce it, and before this assertion existed, revoking the URL one line
+   * after creating it left all three tests in this file green.
+   *
+   * Polled rather than read once: decoding is asynchronous, and a number
+   * arriving late is not the failure being hunted.
+   */
+  await expect
+    .poll(() => thumbnail.evaluate((img: HTMLImageElement) => img.naturalWidth))
+    .toBeGreaterThan(0)
 
   /*
    * AC9.6 — and that is everything that happened. The drafts live in the
