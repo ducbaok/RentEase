@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
+import { currentPeriod, previousPeriod } from '@/lib/domain/period'
 
 /**
  * Stream 2B — the operator dashboard (AC-D1).
@@ -17,10 +18,31 @@ import { test, expect, type Page } from '@playwright/test'
  *   - the lease ends within 30 days → one lease ending soon
  */
 
-// The machine clock these tests run against is 2026-08, so the current billing
-// period is 2026-08 and "this month" on the dashboard means it.
-const THIS_PERIOD = '2026-08' // invoice due 2026-09-08 → still 'sent'
-const OLD_PERIOD = '2026-06' // invoice due 2026-07-08 → already overdue
+/*
+ * Both periods are DERIVED FROM THE CLOCK, and they have to be.
+ *
+ * The dashboard's money section is scoped to whatever the current billing
+ * period is right now, so a test that names a month can only agree with it
+ * during that month. These two were written down as '2026-08' and '2026-06'
+ * beside a comment asserting the machine clock was August; that assertion
+ * expired at midnight on 1 September, and the spec then failed with "$0.00"
+ * against an org it had just part-paid — a failure that reads like a broken
+ * dashboard and is a broken calendar.
+ *
+ * currentPeriod() is the function the application itself uses to decide what
+ * "this month" means, so the two now agree by construction rather than by a
+ * comment somebody has to remember to update.
+ *
+ * The two-month gap is load-bearing, not stylistic. Billing day is the 8th, so
+ * an invoice falls due on the 8th of the month AFTER its period:
+ *   - THIS_PERIOD    → due next month → never overdue on any day of this one
+ *   - one month back → due on the 8th of THIS month → overdue for most of the
+ *                      month but not its first week, which is exactly the test
+ *                      that passes for three weeks and then does not
+ *   - two months back → due on the 8th of last month → overdue on every day
+ */
+const THIS_PERIOD = currentPeriod()
+const OLD_PERIOD = previousPeriod(previousPeriod(THIS_PERIOD))
 const TENANT = 'Cora Dash'
 
 function daysFromToday(days: number): string {
@@ -100,7 +122,7 @@ test('AC-D1: the overview reports collected, outstanding, occupancy, overdue and
   await page.getByRole('button', { name: 'Create lease' }).click()
   await expect(page).toHaveURL(/\/leases\/[0-9a-f-]{36}$/)
 
-  // --- two invoices: one overdue (June), one current and part-paid -------
+  // --- two invoices: one long overdue, one current and part-paid ---------
   await page.goto(`/invoices/issue?period=${OLD_PERIOD}`)
   await page.getByRole('button', { name: /^Issue \d+ invoice/ }).click()
   await expect(page.getByText(new RegExp(`Issued \\d+ invoice(s)? for ${OLD_PERIOD}`))).toBeVisible()
@@ -119,7 +141,7 @@ test('AC-D1: the overview reports collected, outstanding, occupancy, overdue and
   // --- the dashboard, section by section ---------------------------------
   await page.goto('/dashboard')
 
-  // Money is scoped to the current period (2026-08): $1,025 billed, $500 in.
+  // Money is scoped to the current period: $1,025 billed, $500 in.
   await expect(page.getByTestId('dash-collected')).toHaveText('$500.00')
   await expect(page.getByTestId('dash-outstanding')).toHaveText('$525.00')
 
@@ -128,7 +150,7 @@ test('AC-D1: the overview reports collected, outstanding, occupancy, overdue and
   await expect(page.getByTestId('dash-occupancy-occupied')).toHaveText('1')
   await expect(page.getByTestId('dash-occupancy-total')).toHaveText('2')
 
-  // The June invoice is past due → exactly one unit to chase, and it is 201.
+  // The older invoice is past due → exactly one unit to chase, and it is 201.
   await expect(page.getByTestId('dash-overdue-count')).toHaveText('1')
   const overdue = page.getByTestId('dash-overdue-list')
   await expect(overdue.getByRole('row')).toHaveCount(1)
